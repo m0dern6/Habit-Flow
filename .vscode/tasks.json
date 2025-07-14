@@ -1,0 +1,32 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Launch Android Emulator",
+            "type": "shell",
+            "command": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk\\emulator\\emulator.exe",
+            "args": [
+                "-avd",
+                "Pixel_7_Pro_API_35",
+                "-gpu",
+                "host",
+                "-no-metrics"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "isBackground": true,
+            "problemMatcher": [],
+            "options": {
+                "env": {
+                    "ANDROID_SDK_ROOT": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk",
+                    "ANDROID_HOME": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk"
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,38 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "WellnessFlow (Debug)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [],
+            "env": {
+                "ANDROID_SDK_ROOT": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk",
+                "ANDROID_HOME": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk"
+            }
+        },
+        {
+            "name": "WellnessFlow (Profile)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
+            "program": "lib/main.dart",
+            "env": {
+                "ANDROID_SDK_ROOT": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk",
+                "ANDROID_HOME": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk"
+            }
+        },
+        {
+            "name": "WellnessFlow (Release)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "program": "lib/main.dart",
+            "env": {
+                "ANDROID_SDK_ROOT": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk",
+                "ANDROID_HOME": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk"
+            }
+        }
+    ]
+}

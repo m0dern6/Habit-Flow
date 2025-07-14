@@ -1,0 +1,18 @@
+{
+    "dart.flutterSdkPath": "C:\\flutter",
+    "dart.env": {
+        "ANDROID_SDK_ROOT": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk",
+        "ANDROID_HOME": "C:\\Users\\adhik\\AppData\\Local\\Android\\sdk"
+    },
+    "dart.flutterEmulatorFlags": [
+        "--gpu",
+        "host",
+        "--no-metrics"
+    ],
+    "dart.debugExternalPackageLibraries": false,
+    "dart.debugSdkLibraries": false,
+    "files.exclude": {
+        "**/build/": true,
+        "**/.dart_tool/": true
+    }
+}
