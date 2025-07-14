@@ -142,7 +142,7 @@ class _EditHabitPageState extends State<EditHabitPage> {
       '58788': Icons.bedtime,
       '58790': Icons.sunny,
     };
-    
+
     return iconMap[iconCode] ?? Icons.favorite;
   }
 
