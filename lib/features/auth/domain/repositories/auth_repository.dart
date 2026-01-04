@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failures.dart';
 import '../entities/user.dart';
+import '../entities/account_deletion_status.dart';
 
 abstract class AuthRepository {
   Future<Either<Failure, User>> signInWithEmailAndPassword({
@@ -39,4 +40,12 @@ abstract class AuthRepository {
   });
 
   Future<Either<Failure, void>> deleteAccount();
+
+  Future<Either<Failure, AccountDeletionStatus>> scheduleAccountDeletion({
+    Duration gracePeriod = const Duration(days: 7),
+  });
+
+  Future<Either<Failure, AccountDeletionStatus>> cancelScheduledDeletion();
+
+  Future<Either<Failure, AccountDeletionStatus>> getAccountDeletionStatus();
 }

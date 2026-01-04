@@ -10,9 +10,12 @@ abstract class HabitRemoteDataSource {
   Future<HabitModel> createHabit(HabitModel habit);
   Future<HabitModel> updateHabit(HabitModel habit);
   Future<void> deleteHabit(String habitId);
+  Future<void> resetUserProgress(String userId);
 
   Future<List<HabitEntryModel>> getHabitEntries(
       String habitId, DateTime startDate, DateTime endDate);
+  Future<List<HabitEntryModel>> getUserHabitEntries(
+      String userId, DateTime startDate, DateTime endDate);
   Future<HabitEntryModel?> getHabitEntryForDate(String habitId, DateTime date);
   Future<HabitEntryModel> createHabitEntry(HabitEntryModel entry);
   Future<HabitEntryModel> updateHabitEntry(HabitEntryModel entry);
@@ -157,6 +160,54 @@ class HabitRemoteDataSourceImpl implements HabitRemoteDataSource {
   }
 
   @override
+  Future<void> resetUserProgress(String userId) async {
+    try {
+      const batchSize = 400;
+
+      // Delete all habit entry documents for the user
+      QuerySnapshot<Map<String, dynamic>> entryBatch;
+      do {
+        entryBatch = await firestore
+            .collection('habit_entries')
+            .where('userId', isEqualTo: userId)
+            .limit(batchSize)
+            .get();
+
+        if (entryBatch.docs.isEmpty) break;
+
+        final writeBatch = firestore.batch();
+        for (final doc in entryBatch.docs) {
+          writeBatch.delete(doc.reference);
+        }
+
+        await writeBatch.commit();
+      } while (entryBatch.docs.length == batchSize);
+
+      // Deactivate all habits for the user so they disappear from lists
+      QuerySnapshot<Map<String, dynamic>> habitBatch;
+      do {
+        habitBatch = await firestore
+            .collection('habits')
+            .where('userId', isEqualTo: userId)
+            .limit(batchSize)
+            .get();
+
+        if (habitBatch.docs.isEmpty) break;
+
+        final writeBatch = firestore.batch();
+        for (final doc in habitBatch.docs) {
+          writeBatch.update(doc.reference, {'isActive': false});
+        }
+
+        await writeBatch.commit();
+      } while (habitBatch.docs.length == batchSize);
+    } catch (e) {
+      throw ServerException(
+          message: 'Failed to reset progress: ${e.toString()}');
+    }
+  }
+
+  @override
   Future<List<HabitEntryModel>> getHabitEntries(
       String habitId, DateTime startDate, DateTime endDate) async {
     try {
@@ -173,6 +224,29 @@ class HabitRemoteDataSourceImpl implements HabitRemoteDataSource {
 
       // Sort in Dart to avoid index requirements
       entries.sort((a, b) => b.date.compareTo(a.date));
+
+      return entries;
+    } catch (e) {
+      throw ServerException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<List<HabitEntryModel>> getUserHabitEntries(
+      String userId, DateTime startDate, DateTime endDate) async {
+    try {
+      final querySnapshot = await firestore
+          .collection('habit_entries')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      final entries = querySnapshot.docs
+          .map((doc) => HabitEntryModel.fromFirestore(doc))
+          .where((entry) =>
+              entry.date
+                  .isAfter(startDate.subtract(const Duration(seconds: 1))) &&
+              entry.date.isBefore(endDate.add(const Duration(seconds: 1))))
+          .toList();
 
       return entries;
     } catch (e) {
@@ -251,13 +325,15 @@ class HabitRemoteDataSourceImpl implements HabitRemoteDataSource {
     try {
       print('Calculating habit streaks for user: $userId');
 
-      // Simplified query to avoid composite index issues
+      // Get all user habits
       final habitsSnapshot = await firestore
           .collection('habits')
           .where('userId', isEqualTo: userId)
           .get();
 
       final Map<String, int> streaks = {};
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
 
       for (final habitDoc in habitsSnapshot.docs) {
         try {
@@ -269,32 +345,75 @@ class HabitRemoteDataSourceImpl implements HabitRemoteDataSource {
           final habitId = habitDoc.id;
           print('Calculating streak for habit: $habitId');
 
-          // For now, return a simple streak of 0 to avoid complex queries
-          // This can be improved later with better indexing
-          streaks[habitId] = 0;
+          // Get all completed entries for this habit
+          final entriesSnapshot = await firestore
+              .collection('habit_entries')
+              .where('habitId', isEqualTo: habitId)
+              .where('completed', isEqualTo: true)
+              .orderBy('date', descending: true)
+              .limit(90)
+              .get();
 
-          // TODO: Implement proper streak calculation when indexes are set up
-          /*
-          int streak = 0;
-          DateTime checkDate = DateTime(today.year, today.month, today.day);
+          print(
+              'Found ${entriesSnapshot.docs.length} completed entries for habit $habitId');
 
-          // Check consecutive days backwards from today
-          while (streak < 30) { // Limit to prevent infinite loops
-            final entry = await getHabitEntryForDate(habitId, checkDate);
-            if (entry?.completed == true) {
-              streak++;
-              checkDate = checkDate.subtract(const Duration(days: 1));
-            } else {
-              break;
+          // Debug: Print first few entries if any
+          if (entriesSnapshot.docs.isNotEmpty) {
+            for (int i = 0; i < entriesSnapshot.docs.length && i < 3; i++) {
+              final entryData = entriesSnapshot.docs[i].data();
+              final timestamp = entryData['date'] as Timestamp;
+              final completed = entryData['completed'] ?? false;
+              print(
+                  '  Entry $i: date=${timestamp.toDate()}, completed=$completed');
             }
           }
 
+          if (entriesSnapshot.docs.isEmpty) {
+            streaks[habitId] = 0;
+            continue;
+          }
+
+          // Calculate streak by checking consecutive days
+          int streak = 0;
+          DateTime? lastDate;
+
+          for (final doc in entriesSnapshot.docs) {
+            final entryData = doc.data();
+            final timestamp = entryData['date'] as Timestamp;
+            final entryDate = timestamp.toDate();
+            final normalizedDate =
+                DateTime(entryDate.year, entryDate.month, entryDate.day);
+
+            if (lastDate == null) {
+              // First entry - check if it's today or yesterday
+              // (streak continues if you completed yesterday but not yet today)
+              final daysDiff = todayDate.difference(normalizedDate).inDays;
+              if (daysDiff <= 1) {
+                streak = 1;
+                lastDate = normalizedDate;
+              } else {
+                // Most recent completion is too old
+                break;
+              }
+            } else {
+              // Check if this entry is consecutive with the last one
+              final daysDiff = lastDate.difference(normalizedDate).inDays;
+              if (daysDiff == 1) {
+                streak++;
+                lastDate = normalizedDate;
+              } else {
+                // Gap found, streak broken
+                break;
+              }
+            }
+          }
+
+          print('Habit $habitId streak: $streak days');
+
           streaks[habitId] = streak;
-          */
         } catch (habitError) {
           print(
               'Error calculating streak for habit ${habitDoc.id}: $habitError');
-          // Set streak to 0 for this habit and continue
           streaks[habitDoc.id] = 0;
         }
       }
@@ -303,7 +422,6 @@ class HabitRemoteDataSourceImpl implements HabitRemoteDataSource {
       return streaks;
     } catch (e) {
       print('Error in getHabitStreaks: $e');
-      // Return empty map instead of throwing to prevent blocking habits list
       return <String, int>{};
     }
   }

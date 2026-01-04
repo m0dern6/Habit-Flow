@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/neumorphic_card.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../habits/presentation/bloc/habit_bloc.dart';
+import '../../../habits/presentation/bloc/habit_event.dart';
 import '../../../habits/presentation/bloc/habit_state.dart';
 
 class AnalyticsPage extends StatefulWidget {
@@ -23,6 +25,197 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     'This Year',
     'All Time'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Load entries for the initial period
+    _loadEntriesForPeriod();
+  }
+
+  void _loadEntriesForPeriod() {
+    final authState = context.read<AuthBloc>().state;
+    if (authState.user == null) {
+      print('⚠️ Cannot load entries - user is null');
+      return;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    // Determine date range based on selected period
+    DateTime startDate;
+    switch (_selectedPeriod) {
+      case 'This Week':
+        final weekday = today.weekday;
+        startDate = today.subtract(Duration(days: weekday - 1));
+        break;
+      case 'This Month':
+        startDate = DateTime(today.year, today.month, 1);
+        break;
+      case 'This Year':
+        startDate = DateTime(today.year, 1, 1);
+        break;
+      case 'All Time':
+      default:
+        // Load last 365 days for "All Time" to keep it reasonable
+        startDate = today.subtract(const Duration(days: 365));
+        break;
+    }
+
+    print('🔄 Loading entries for period: $_selectedPeriod');
+    print('Date range: $startDate to $today');
+    print('User ID: ${authState.user!.id}');
+
+    // Load entries for all user habits in this period
+    context.read<HabitBloc>().add(LoadUserHabitEntries(
+          userId: authState.user!.id,
+          startDate: startDate,
+          endDate: today,
+        ));
+  }
+
+  /// Calculate expected vs completed check-ins for active habits in the selected period
+  (int expectedCheckIns, int completedCheckIns) _calculateCompletionStats(
+      HabitState state) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    print('═══════════════════════════════════════════════════════');
+    print('ANALYTICS CALCULATION - Period: $_selectedPeriod');
+    print('Today: $today');
+    print('Total habits: ${state.habits.length}');
+    print('Total entries loaded: ${state.habitEntries.length}');
+
+    // Determine the date range based on selected period
+    DateTime startDate;
+    switch (_selectedPeriod) {
+      case 'This Week':
+        // Start from Monday of current week
+        final weekday = today.weekday;
+        startDate = today.subtract(Duration(days: weekday - 1));
+        break;
+      case 'This Month':
+        startDate = DateTime(today.year, today.month, 1);
+        break;
+      case 'This Year':
+        startDate = DateTime(today.year, 1, 1);
+        break;
+      case 'All Time':
+      default:
+        // For "All Time", use the earliest habit creation date or a reasonable default
+        if (state.habits.isEmpty) {
+          startDate = today;
+        } else {
+          startDate = state.habits
+              .map((h) => h.createdAt)
+              .reduce((a, b) => a.isBefore(b) ? a : b);
+          startDate = DateTime(startDate.year, startDate.month, startDate.day);
+        }
+        break;
+    }
+
+    print('Date range: $startDate to $today');
+    print('Days in period: ${today.difference(startDate).inDays + 1}');
+
+    int expectedCheckIns = 0;
+    int completedCheckIns = 0;
+
+    // For each active habit, calculate expected check-ins
+    for (final habit in state.habits) {
+      print('\n--- Habit: ${habit.title} ---');
+      print('Active: ${habit.isActive}');
+
+      if (!habit.isActive) {
+        print('Skipping inactive habit');
+        continue;
+      }
+
+      // Determine the habit's start date (when it was created or the period start, whichever is later)
+      final habitStartDate = DateTime(
+        habit.createdAt.year,
+        habit.createdAt.month,
+        habit.createdAt.day,
+      );
+      final effectiveStartDate =
+          habitStartDate.isAfter(startDate) ? habitStartDate : startDate;
+
+      print('Habit created: $habitStartDate');
+      print('Effective start: $effectiveStartDate');
+
+      // Count the number of days from effective start to today (inclusive)
+      final daysSinceStart = today.difference(effectiveStartDate).inDays + 1;
+
+      print('Days since start: $daysSinceStart');
+
+      if (daysSinceStart <= 0) {
+        print('No days to track yet');
+        continue;
+      }
+
+      // Calculate expected check-ins based on reminder days
+      // If no reminder days are set, assume daily
+      int expectedForThisHabit = 0;
+      if (habit.reminderDays.isEmpty) {
+        // Daily habit
+        expectedForThisHabit = daysSinceStart;
+        print('Daily habit - expected: $expectedForThisHabit');
+      } else {
+        // Count how many times each reminder day occurs in the period
+        final reminderDaysLower =
+            habit.reminderDays.map((d) => d.toLowerCase()).toSet();
+        print('Reminder days: ${habit.reminderDays}');
+
+        for (int i = 0; i < daysSinceStart; i++) {
+          final checkDate = effectiveStartDate.add(Duration(days: i));
+          final weekdayName = [
+            'monday',
+            'tuesday',
+            'wednesday',
+            'thursday',
+            'friday',
+            'saturday',
+            'sunday'
+          ][checkDate.weekday - 1];
+
+          if (reminderDaysLower.contains(weekdayName)) {
+            expectedForThisHabit++;
+          }
+        }
+        print('Scheduled days in period - expected: $expectedForThisHabit');
+      }
+      expectedCheckIns += expectedForThisHabit;
+
+      // Count completed check-ins for this habit in the period
+      final habitEntries = state.habitEntries
+          .where((entry) =>
+              entry.habitId == habit.id &&
+              !entry.date.isBefore(effectiveStartDate) &&
+              !entry.date.isAfter(today))
+          .toList();
+
+      final habitCompletedEntries =
+          habitEntries.where((entry) => entry.completed).length;
+
+      print('Total entries for this habit in period: ${habitEntries.length}');
+      print('Completed entries: $habitCompletedEntries');
+      if (habitEntries.isNotEmpty) {
+        print(
+            'Entry dates: ${habitEntries.map((e) => '${e.date.month}/${e.date.day} (${e.completed ? "✓" : "✗"})').join(", ")}');
+      }
+
+      completedCheckIns += habitCompletedEntries;
+    }
+
+    print('\n═══ FINAL RESULTS ═══');
+    print('Total expected check-ins: $expectedCheckIns');
+    print('Total completed check-ins: $completedCheckIns');
+    print(
+        'Completion rate: ${expectedCheckIns > 0 ? ((completedCheckIns / expectedCheckIns * 100).round()) : 0}%');
+    print('═══════════════════════════════════════════════════════\n');
+
+    return (expectedCheckIns, completedCheckIns);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +309,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 setState(() {
                   _selectedPeriod = value!;
                 });
+                // Reload entries for the new period
+                _loadEntriesForPeriod();
               },
               items: _periods.map((period) {
                 return DropdownMenuItem(
@@ -190,11 +385,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
   Widget _buildOverviewCards(HabitState state) {
     final totalHabits = state.habits.length;
-    final totalEntries = state.habitEntries.length;
-    final completedEntries =
-        state.habitEntries.where((entry) => entry.completed).length;
-    final completionRate =
-        totalEntries > 0 ? (completedEntries / totalEntries * 100).round() : 0;
+
+    // Calculate completion rate based on the period selected
+    final (expectedCheckIns, completedCheckIns) =
+        _calculateCompletionStats(state);
+    final completionRate = expectedCheckIns > 0
+        ? (completedCheckIns / expectedCheckIns * 100).round()
+        : 0;
+
+    print('Display - Completion Rate: $completionRate%');
+
     final avgStreak = state.habitStreaks.isNotEmpty
         ? (state.habitStreaks.values.reduce((a, b) => a + b) /
                 state.habitStreaks.length)
@@ -320,27 +520,31 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: chartData.map((data) {
-        final height = (data['percentage'] as double) * 160 + 20;
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Container(
-              width: 30,
-              height: height,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(4),
+        // Reduced height calculation to prevent overflow
+        // Max 150px for bar + 20px minimum, leaving room for label and spacing
+        final height = (data['percentage'] as double) * 150 + 20;
+        return Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Container(
+                width: 30,
+                height: height,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              data['day'],
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
+              const SizedBox(height: 8),
+              Text(
+                data['day'],
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       }).toList(),
     );

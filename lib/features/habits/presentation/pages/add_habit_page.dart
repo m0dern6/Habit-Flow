@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/neumorphism_style.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_card.dart';
@@ -89,22 +90,27 @@ class _AddHabitPageState extends State<AddHabitPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final statusColors =
+        Theme.of(context).extension<StatusColors>() ?? StatusColors.light;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
         leading: NeumorphicButton(
           onPressed: () => context.pop(),
-          child: const Icon(
+          child: Icon(
             Icons.arrow_back,
-            color: AppColors.textPrimary,
+            color: colorScheme.onSurface,
           ),
         ),
-        title: const Text(
+        title: Text(
           'Add New Habit',
-          style: TextStyle(
-            color: AppColors.textPrimary,
+          style: textTheme.titleLarge?.copyWith(
+            color: colorScheme.onSurface,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -113,9 +119,9 @@ class _AddHabitPageState extends State<AddHabitPage> {
             listener: (context, state) {
               if (state.status == HabitStatus.loaded) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Habit created successfully!'),
-                    backgroundColor: AppColors.success,
+                  SnackBar(
+                    content: const Text('Habit created successfully!'),
+                    backgroundColor: statusColors.success,
                   ),
                 );
                 context.pop();
@@ -123,7 +129,7 @@ class _AddHabitPageState extends State<AddHabitPage> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(state.message ?? 'Failed to create habit'),
-                    backgroundColor: AppColors.error,
+                    backgroundColor: colorScheme.error,
                   ),
                 );
               }
@@ -141,9 +147,9 @@ class _AddHabitPageState extends State<AddHabitPage> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(
+                        : Icon(
                             Icons.save,
-                            color: AppColors.primary,
+                            color: colorScheme.primary,
                           ),
                   );
                 },
@@ -237,18 +243,19 @@ class _AddHabitPageState extends State<AddHabitPage> {
   }
 
   Widget _buildBasicInfo() {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Basic Information',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -275,18 +282,19 @@ class _AddHabitPageState extends State<AddHabitPage> {
   }
 
   Widget _buildCategorySelection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Category',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -306,20 +314,30 @@ class _AddHabitPageState extends State<AddHabitPage> {
                       horizontal: 16,
                       vertical: 8,
                     ),
-                    decoration: isSelected
-                        ? NeumorphismStyle.createNeumorphism(
-                            depth: 2,
-                            isPressed: true,
-                          )
-                        : NeumorphismStyle.createNeumorphism(
-                            depth: 2,
-                          ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.surfaceContainerHighest
+                          : colorScheme.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary.withOpacity(0.5)
+                            : colorScheme.outlineVariant,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
                     child: Text(
                       category,
-                      style: TextStyle(
+                      style: textTheme.bodyMedium?.copyWith(
                         color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
                         fontWeight:
                             isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
@@ -335,18 +353,19 @@ class _AddHabitPageState extends State<AddHabitPage> {
   }
 
   Widget _buildIconSelection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Icon',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -372,19 +391,29 @@ class _AddHabitPageState extends State<AddHabitPage> {
                   },
                   child: Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: isSelected
-                        ? NeumorphismStyle.createNeumorphism(
-                            depth: 2,
-                            isPressed: true,
-                          )
-                        : NeumorphismStyle.createNeumorphism(
-                            depth: 2,
-                          ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.surfaceContainerHighest
+                          : colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary.withOpacity(0.4)
+                            : colorScheme.outlineVariant,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
                     child: Icon(
                       iconData['icon'],
                       color: isSelected
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
                       size: 24,
                     ),
                   ),
@@ -398,18 +427,19 @@ class _AddHabitPageState extends State<AddHabitPage> {
   }
 
   Widget _buildColorSelection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Color',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -430,19 +460,24 @@ class _AddHabitPageState extends State<AddHabitPage> {
                     decoration: BoxDecoration(
                       color: color,
                       borderRadius: BorderRadius.circular(8),
-                      boxShadow: isSelected
-                          ? NeumorphismStyle.createNeumorphism(
-                              depth: 2,
-                              isPressed: true,
-                            ).boxShadow
-                          : NeumorphismStyle.createNeumorphism(
-                              depth: 2,
-                            ).boxShadow,
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow
+                              .withOpacity(isSelected ? 0.2 : 0.1),
+                          blurRadius: isSelected ? 10 : 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.onSurface.withOpacity(0.15)
+                            : colorScheme.outlineVariant,
+                      ),
                     ),
                     child: isSelected
-                        ? const Icon(
+                        ? Icon(
                             Icons.check,
-                            color: Colors.white,
+                            color: colorScheme.onPrimary,
                             size: 20,
                           )
                         : null,
@@ -457,18 +492,19 @@ class _AddHabitPageState extends State<AddHabitPage> {
   }
 
   Widget _buildTargetDuration() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Target Duration (minutes)',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -483,7 +519,7 @@ class _AddHabitPageState extends State<AddHabitPage> {
                     }
                   },
                   child:
-                      const Icon(Icons.remove, color: AppColors.textSecondary),
+                      Icon(Icons.remove, color: colorScheme.onSurfaceVariant),
                 ),
                 Expanded(
                   child: Padding(
@@ -491,10 +527,9 @@ class _AddHabitPageState extends State<AddHabitPage> {
                     child: Text(
                       '$_targetDuration minutes',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -505,7 +540,7 @@ class _AddHabitPageState extends State<AddHabitPage> {
                       _targetDuration += 5;
                     });
                   },
-                  child: const Icon(Icons.add, color: AppColors.textSecondary),
+                  child: Icon(Icons.add, color: colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -516,27 +551,27 @@ class _AddHabitPageState extends State<AddHabitPage> {
   }
 
   Widget _buildReminderSettings() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Reminder Settings',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Days of the week',
-              style: TextStyle(
-                fontSize: 14,
+              style: textTheme.labelLarge?.copyWith(
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 8),
@@ -560,20 +595,30 @@ class _AddHabitPageState extends State<AddHabitPage> {
                       horizontal: 12,
                       vertical: 8,
                     ),
-                    decoration: isSelected
-                        ? NeumorphismStyle.createNeumorphism(
-                            depth: 2,
-                            isPressed: true,
-                          )
-                        : NeumorphismStyle.createNeumorphism(
-                            depth: 2,
-                          ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.surfaceContainerHighest
+                          : colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? colorScheme.primary.withOpacity(0.5)
+                            : colorScheme.outlineVariant,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
                     child: Text(
                       day.substring(0, 3),
-                      style: TextStyle(
+                      style: textTheme.bodyMedium?.copyWith(
                         color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
                         fontWeight:
                             isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
@@ -585,13 +630,12 @@ class _AddHabitPageState extends State<AddHabitPage> {
             const SizedBox(height: 16),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Reminder time',
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: textTheme.labelLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -606,8 +650,8 @@ class _AddHabitPageState extends State<AddHabitPage> {
                       _reminderTime != null
                           ? _reminderTime!.format(context)
                           : 'Set time',
-                      style: const TextStyle(
-                        color: AppColors.primary,
+                      style: textTheme.labelLarge?.copyWith(
+                        color: colorScheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -622,18 +666,19 @@ class _AddHabitPageState extends State<AddHabitPage> {
   }
 
   Widget _buildSaveButton() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return SizedBox(
       width: double.infinity,
       child: NeumorphicButton(
         onPressed: _saveHabit,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
           child: Text(
             'Create Habit',
-            style: TextStyle(
-              fontSize: 18,
+            style: textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppColors.primary,
+              color: colorScheme.primary,
             ),
             textAlign: TextAlign.center,
           ),

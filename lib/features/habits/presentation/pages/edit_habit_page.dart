@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_card.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
@@ -36,6 +37,8 @@ class _EditHabitPageState extends State<EditHabitPage> {
 
   Habit? _habit;
   bool _isLoading = true;
+  bool _isUpdating = false;
+  bool _isDeleting = false;
 
   final List<String> _categories = [
     'Health',
@@ -56,21 +59,23 @@ class _EditHabitPageState extends State<EditHabitPage> {
     {'icon': Icons.work, 'label': 'Work'},
     {'icon': Icons.local_drink, 'label': 'Drink'},
     {'icon': Icons.restaurant, 'label': 'Food'},
+    {'icon': Icons.bedtime, 'label': 'Sleep'},
     {'icon': Icons.music_note, 'label': 'Music'},
     {'icon': Icons.palette, 'label': 'Art'},
-    {'icon': Icons.code, 'label': 'Code'},
+    {'icon': Icons.attach_money, 'label': 'Money'},
+    {'icon': Icons.phone, 'label': 'Social'},
   ];
 
-  final Map<Color, String> _colors = {
-    AppColors.primary: 'Primary',
-    AppColors.accent: 'Accent',
-    AppColors.success: 'Success',
-    Colors.orange: 'Orange',
-    Colors.purple: 'Purple',
-    Colors.pink: 'Pink',
-    Colors.teal: 'Teal',
-    Colors.indigo: 'Indigo',
-  };
+  final List<Color> _colors = [
+    AppColors.primary,
+    AppColors.accent,
+    AppColors.success,
+    Colors.orange,
+    Colors.purple,
+    Colors.pink,
+    Colors.teal,
+    Colors.indigo,
+  ];
 
   @override
   void initState() {
@@ -88,9 +93,23 @@ class _EditHabitPageState extends State<EditHabitPage> {
       _titleController.text = _habit!.title;
       _descriptionController.text = _habit!.description;
       _selectedCategory = _habit!.category;
+
       _selectedIcon = _getIconFromName(_habit!.iconCode);
       _selectedColor = _getColorFromName(_habit!.color);
-      _selectedDays = List<String>.from(_habit!.reminderDays);
+
+      // Convert full day names to short day names
+      _selectedDays = _habit!.reminderDays.map((day) {
+        final dayLower = day.toLowerCase();
+        if (dayLower.startsWith('mon')) return 'Mon';
+        if (dayLower.startsWith('tue')) return 'Tue';
+        if (dayLower.startsWith('wed')) return 'Wed';
+        if (dayLower.startsWith('thu')) return 'Thu';
+        if (dayLower.startsWith('fri')) return 'Fri';
+        if (dayLower.startsWith('sat')) return 'Sat';
+        if (dayLower.startsWith('sun')) return 'Sun';
+        return day; // fallback
+      }).toList();
+
       if (_habit!.reminderTime != null) {
         _reminderTime = TimeOfDay(
           hour: _habit!.reminderTime!.hour,
@@ -108,42 +127,19 @@ class _EditHabitPageState extends State<EditHabitPage> {
   }
 
   IconData _getIconFromName(String iconCode) {
-    // Use a constant map for icon lookup to avoid tree shaking issues
-    const iconMap = {
-      '58720': Icons.favorite,
-      '58722': Icons.star,
-      '58731': Icons.home,
-      '58732': Icons.work,
-      '58738': Icons.school,
-      '58740': Icons.fitness_center,
-      '58742': Icons.local_dining,
-      '58744': Icons.directions_run,
-      '58746': Icons.book,
-      '58748': Icons.music_note,
-      '58750': Icons.palette,
-      '58752': Icons.camera_alt,
-      '58754': Icons.games,
-      '58756': Icons.shopping_cart,
-      '58758': Icons.card_giftcard,
-      '58760': Icons.pets,
-      '58762': Icons.eco,
-      '58764': Icons.self_improvement,
-      '58766': Icons.psychology,
-      '58768': Icons.emoji_events,
-      '58770': Icons.track_changes,
-      '58772': Icons.timer,
-      '58774': Icons.calendar_today,
-      '58776': Icons.schedule,
-      '58778': Icons.alarm,
-      '58780': Icons.notifications,
-      '58782': Icons.health_and_safety,
-      '58784': Icons.restaurant,
-      '58786': Icons.water_drop,
-      '58788': Icons.bedtime,
-      '58790': Icons.sunny,
-    };
+    // Build map from actual icons list to ensure accuracy
+    final iconMap = <String, IconData>{};
+    for (var iconData in _icons) {
+      final icon = iconData['icon'] as IconData;
+      iconMap[icon.codePoint.toString()] = icon;
+    }
 
-    return iconMap[iconCode] ?? Icons.favorite;
+    print('🔍 Looking up icon code: $iconCode');
+    final icon = iconMap[iconCode] ?? Icons.favorite;
+    print(
+        '🔍 Found icon: ${icon.codePoint}, matched: ${iconMap.containsKey(iconCode)}');
+    print('🔍 Selected icon will be: ${icon.codePoint}');
+    return icon;
   }
 
   Color _getColorFromName(String colorString) {
@@ -160,7 +156,7 @@ class _EditHabitPageState extends State<EditHabitPage> {
   }
 
   String _getColorName(Color color) {
-    return color.value.toRadixString(16);
+    return color.value.toRadixString(16).padLeft(8, '0');
   }
 
   @override
@@ -174,34 +170,59 @@ class _EditHabitPageState extends State<EditHabitPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final statusColors =
+        Theme.of(context).extension<StatusColors>() ?? StatusColors.light;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(colorScheme, textTheme),
             Expanded(
               child: BlocListener<HabitBloc, HabitState>(
                 listener: (context, state) {
                   if (state.status == HabitStatus.loaded) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Habit updated successfully!'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                    context.pop();
+                    if (_isDeleting) {
+                      // Habit was deleted
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Habit deleted successfully!'),
+                          backgroundColor: statusColors.success,
+                        ),
+                      );
+                      context.pop();
+                    } else if (_isUpdating) {
+                      // Habit was updated
+                      setState(() {
+                        _isUpdating = false;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Habit updated successfully!'),
+                          backgroundColor: statusColors.success,
+                        ),
+                      );
+                      context.pop();
+                    }
                   } else if (state.status == HabitStatus.error) {
+                    setState(() {
+                      _isUpdating = false;
+                      _isDeleting = false;
+                    });
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content:
-                            Text(state.message ?? 'Failed to update habit'),
-                        backgroundColor: AppColors.error,
+                        content: Text(_isDeleting
+                            ? (state.message ?? 'Failed to delete habit')
+                            : (state.message ?? 'Failed to update habit')),
+                        backgroundColor: colorScheme.error,
                       ),
                     );
                   }
@@ -238,36 +259,34 @@ class _EditHabitPageState extends State<EditHabitPage> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(ColorScheme colorScheme, TextTheme textTheme) {
     return Container(
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
           NeumorphicButton(
             onPressed: () => context.pop(),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back,
-              color: AppColors.textPrimary,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Edit Habit',
-                  style: TextStyle(
-                    fontSize: 24,
+                  style: textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 Text(
                   'Update your habit details',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -317,18 +336,19 @@ class _EditHabitPageState extends State<EditHabitPage> {
   }
 
   Widget _buildCategorySelection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Category',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -348,21 +368,29 @@ class _EditHabitPageState extends State<EditHabitPage> {
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppColors.primary.withOpacity(0.2)
-                          : AppColors.surface,
+                          ? colorScheme.surfaceContainerHighest
+                          : colorScheme.surface,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color:
-                            isSelected ? AppColors.primary : AppColors.surface,
-                        width: 2,
+                        color: isSelected
+                            ? colorScheme.primary.withOpacity(0.5)
+                            : colorScheme.outlineVariant,
+                        width: 1.5,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Text(
                       category,
-                      style: TextStyle(
+                      style: textTheme.bodyMedium?.copyWith(
                         color: isSelected
-                            ? AppColors.primary
-                            : AppColors.textPrimary,
+                            ? colorScheme.primary
+                            : colorScheme.onSurface,
                         fontWeight:
                             isSelected ? FontWeight.w600 : FontWeight.normal,
                       ),
@@ -378,18 +406,19 @@ class _EditHabitPageState extends State<EditHabitPage> {
   }
 
   Widget _buildIconSelection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Icon',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -404,7 +433,10 @@ class _EditHabitPageState extends State<EditHabitPage> {
               itemCount: _icons.length,
               itemBuilder: (context, index) {
                 final iconData = _icons[index];
-                final isSelected = _selectedIcon == iconData['icon'];
+                final iconFromList = iconData['icon'] as IconData;
+                final isSelected =
+                    _selectedIcon.codePoint == iconFromList.codePoint;
+
                 return GestureDetector(
                   onTap: () {
                     setState(() {
@@ -414,21 +446,29 @@ class _EditHabitPageState extends State<EditHabitPage> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppColors.primary.withOpacity(0.2)
-                          : AppColors.surface,
+                          ? colorScheme.surfaceContainerHighest
+                          : colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color:
-                            isSelected ? AppColors.primary : AppColors.surface,
-                        width: 2,
+                        color: isSelected
+                            ? colorScheme.primary.withOpacity(0.4)
+                            : colorScheme.outlineVariant,
+                        width: 1.5,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Icon(
                       iconData['icon'],
                       size: 24,
                       color: isSelected
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
                     ),
                   ),
                 );
@@ -441,26 +481,28 @@ class _EditHabitPageState extends State<EditHabitPage> {
   }
 
   Widget _buildColorSelection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Color',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
             Wrap(
               spacing: 12,
               runSpacing: 12,
-              children: _colors.keys.map((color) {
-                final isSelected = _selectedColor == color;
+              children: _colors.map((color) {
+                final isSelected = _selectedColor.value == color.value;
+
                 return GestureDetector(
                   onTap: () {
                     setState(() {
@@ -475,16 +517,22 @@ class _EditHabitPageState extends State<EditHabitPage> {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isSelected
-                            ? AppColors.textPrimary
-                            : Colors.transparent,
+                            ? colorScheme.onSurface.withOpacity(0.2)
+                            : colorScheme.outlineVariant,
                         width: 3,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.1),
+                          blurRadius: isSelected ? 10 : 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: isSelected
-                        ? const Icon(
+                        ? Icon(
                             Icons.check,
-                            color: Colors.white,
-                            size: 20,
+                            color: colorScheme.onPrimary,
                           )
                         : null,
                   ),
@@ -498,6 +546,8 @@ class _EditHabitPageState extends State<EditHabitPage> {
   }
 
   Widget _buildSchedule() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return NeumorphicCard(
@@ -506,12 +556,11 @@ class _EditHabitPageState extends State<EditHabitPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Schedule',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -534,19 +583,30 @@ class _EditHabitPageState extends State<EditHabitPage> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : AppColors.surface,
+                      color: isSelected
+                          ? colorScheme.primary.withOpacity(0.14)
+                          : colorScheme.surface,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color:
-                            isSelected ? AppColors.primary : AppColors.surface,
+                        color: isSelected
+                            ? colorScheme.primary.withOpacity(0.6)
+                            : colorScheme.outlineVariant,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
                     child: Center(
                       child: Text(
                         day.substring(0, 1),
-                        style: TextStyle(
-                          color:
-                              isSelected ? Colors.white : AppColors.textPrimary,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: isSelected
+                              ? colorScheme.primary
+                              : colorScheme.onSurface,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -562,18 +622,19 @@ class _EditHabitPageState extends State<EditHabitPage> {
   }
 
   Widget _buildReminder() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Reminder',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -648,22 +709,33 @@ class _EditHabitPageState extends State<EditHabitPage> {
         SizedBox(
           width: double.infinity,
           child: NeumorphicButton(
-            onPressed: _updateHabit,
+            onPressed: _isUpdating ? null : _updateHabit,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: _isUpdating
+                    ? AppColors.primary.withOpacity(0.6)
+                    : AppColors.primary,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
-                'Update Habit',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
+              child: _isUpdating
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Update Habit',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -696,13 +768,39 @@ class _EditHabitPageState extends State<EditHabitPage> {
 
   void _updateHabit() {
     if (_formKey.currentState!.validate() && _selectedDays.isNotEmpty) {
+      setState(() {
+        _isUpdating = true;
+      });
+
+      // Convert short day names to full lowercase names
+      final fullDayNames = _selectedDays.map((day) {
+        switch (day) {
+          case 'Mon':
+            return 'monday';
+          case 'Tue':
+            return 'tuesday';
+          case 'Wed':
+            return 'wednesday';
+          case 'Thu':
+            return 'thursday';
+          case 'Fri':
+            return 'friday';
+          case 'Sat':
+            return 'saturday';
+          case 'Sun':
+            return 'sunday';
+          default:
+            return day.toLowerCase();
+        }
+      }).toList();
+
       final updatedHabit = _habit!.copyWith(
         title: _titleController.text,
         description: _descriptionController.text,
         category: _selectedCategory,
         iconCode: _getIconName(_selectedIcon),
         color: _getColorName(_selectedColor),
-        reminderDays: _selectedDays,
+        reminderDays: fullDayNames,
         reminderTime: _reminderTime != null
             ? DateTime(2000, 1, 1, _reminderTime!.hour, _reminderTime!.minute)
             : null,
@@ -736,6 +834,9 @@ class _EditHabitPageState extends State<EditHabitPage> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
+              setState(() {
+                _isDeleting = true;
+              });
               context.read<HabitBloc>().add(
                     DeleteHabitRequested(habitId: _habit!.id),
                   );

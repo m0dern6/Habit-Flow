@@ -12,6 +12,8 @@ abstract class HabitRepository {
 
   Future<Either<Failure, List<HabitEntry>>> getHabitEntries(
       String habitId, DateTime startDate, DateTime endDate);
+  Future<Either<Failure, List<HabitEntry>>> getUserHabitEntries(
+      String userId, DateTime startDate, DateTime endDate);
   Future<Either<Failure, HabitEntry?>> getHabitEntryForDate(
       String habitId, DateTime date);
   Future<Either<Failure, HabitEntry>> createHabitEntry(HabitEntry entry);
@@ -21,6 +23,8 @@ abstract class HabitRepository {
   Future<Either<Failure, Map<String, int>>> getHabitStreaks(String userId);
   Future<Either<Failure, Map<String, double>>> getHabitCompletionRates(
       String userId, DateTime startDate, DateTime endDate);
+
+  Future<Either<Failure, void>> resetUserProgress(String userId);
 
   Stream<List<Habit>> watchUserHabits(String userId);
   Stream<List<HabitEntry>> watchHabitEntries(

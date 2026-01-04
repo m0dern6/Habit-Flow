@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/neumorphism_style.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../../core/utils/data_preload.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -65,6 +65,12 @@ class _SplashPageState extends State<SplashPage>
 
     final authState = context.read<AuthBloc>().state;
 
+    // Preload user data as soon as auth succeeds so downstream screens have everything ready.
+    if (authState.status == AuthStatus.authenticated &&
+        authState.user != null) {
+      primeUserData(context, userId: authState.user!.id);
+    }
+
     // Wait a bit more if still loading
     if (authState.status == AuthStatus.loading) {
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -114,7 +120,7 @@ class _SplashPageState extends State<SplashPage>
         }
       },
       child: Scaffold(
-        backgroundColor: theme.colorScheme.background,
+        backgroundColor: theme.colorScheme.surface,
         body: Container(
           width: size.width,
           height: size.height,
@@ -151,11 +157,11 @@ class _SplashPageState extends State<SplashPage>
                             borderRadius:
                                 const BorderRadius.all(Radius.circular(30)),
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Icon(
                               Icons.self_improvement,
                               size: 60,
-                              color: AppColors.primary,
+                              color: theme.colorScheme.primary,
                             ),
                           ),
                         ),
@@ -175,7 +181,7 @@ class _SplashPageState extends State<SplashPage>
                       child: Text(
                         AppStrings.welcomeTitle,
                         style: theme.textTheme.displayMedium?.copyWith(
-                          color: AppColors.primary,
+                          color: theme.colorScheme.primary,
                           fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
@@ -210,8 +216,10 @@ class _SplashPageState extends State<SplashPage>
                 const Spacer(flex: 2),
 
                 // Loading Indicator
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    theme.colorScheme.primary,
+                  ),
                 ),
 
                 const Spacer(),

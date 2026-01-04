@@ -7,6 +7,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/network_info.dart';
+import '../services/notification_service.dart';
+import '../services/leaderboard_update_service.dart';
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
@@ -16,6 +18,9 @@ import '../../features/auth/domain/usecases/sign_in_with_email_and_password.dart
 import '../../features/auth/domain/usecases/sign_in_with_google.dart';
 import '../../features/auth/domain/usecases/sign_out.dart';
 import '../../features/auth/domain/usecases/sign_up_with_email_and_password.dart';
+import '../../features/auth/domain/usecases/schedule_account_deletion.dart';
+import '../../features/auth/domain/usecases/cancel_account_deletion.dart';
+import '../../features/auth/domain/usecases/get_account_deletion_status.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 
 // Habits
@@ -27,6 +32,7 @@ import '../../features/habits/domain/usecases/create_habit.dart';
 import '../../features/habits/domain/usecases/update_habit.dart';
 import '../../features/habits/domain/usecases/create_habit_entry.dart';
 import '../../features/habits/domain/usecases/get_habit_entry_for_date.dart';
+import '../../features/habits/domain/usecases/reset_user_progress.dart';
 import '../../features/habits/presentation/bloc/habit_bloc.dart';
 
 // Profile
@@ -38,6 +44,7 @@ import '../../features/profile/domain/usecases/update_user_profile.dart';
 import '../../features/profile/domain/usecases/create_user_profile.dart';
 import '../../features/profile/domain/usecases/upload_profile_image.dart';
 import '../../features/profile/presentation/bloc/profile_bloc.dart';
+import '../../features/profile/presentation/bloc/settings/settings_bloc.dart';
 
 // Admin
 import '../../features/admin/data/datasources/admin_remote_data_source.dart';
@@ -47,6 +54,13 @@ import '../../features/admin/domain/usecases/sign_in_admin.dart';
 import '../../features/admin/domain/usecases/user_management.dart';
 import '../../features/admin/domain/usecases/analytics.dart';
 import '../../features/admin/presentation/bloc/admin_bloc.dart';
+
+// Leaderboard
+import '../../features/leaderboard/data/datasources/leaderboard_remote_data_source.dart';
+import '../../features/leaderboard/data/repositories/leaderboard_repository_impl.dart';
+import '../../features/leaderboard/domain/repositories/leaderboard_repository.dart';
+import '../../features/leaderboard/domain/usecases/get_leaderboard.dart';
+import '../../features/leaderboard/presentation/bloc/leaderboard_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -60,6 +74,12 @@ Future<void> configureDependencies() async {
   sl.registerLazySingleton<FirebaseStorage>(() => FirebaseStorage.instance);
   sl.registerLazySingleton<GoogleSignIn>(() => GoogleSignIn());
   sl.registerLazySingleton<Connectivity>(() => Connectivity());
+
+  // Services
+  sl.registerLazySingleton<NotificationService>(() => NotificationService());
+  sl.registerLazySingleton<LeaderboardUpdateService>(
+    () => LeaderboardUpdateService(firestore: sl<FirebaseFirestore>()),
+  );
 
   // Core
   sl.registerLazySingleton<NetworkInfo>(
@@ -93,6 +113,10 @@ Future<void> configureDependencies() async {
   sl.registerLazySingleton(() => SignInWithGoogle(sl<AuthRepository>()));
   sl.registerLazySingleton(() => SignOut(sl<AuthRepository>()));
   sl.registerLazySingleton(() => SendPasswordResetEmail(sl<AuthRepository>()));
+  sl.registerLazySingleton(() => ScheduleAccountDeletion(sl<AuthRepository>()));
+  sl.registerLazySingleton(() => CancelAccountDeletion(sl<AuthRepository>()));
+  sl.registerLazySingleton(
+      () => GetAccountDeletionStatus(sl<AuthRepository>()));
 
   // BLoC
   sl.registerFactory(
@@ -128,6 +152,7 @@ Future<void> configureDependencies() async {
   sl.registerLazySingleton(() => UpdateHabit(sl<HabitRepository>()));
   sl.registerLazySingleton(() => CreateHabitEntry(sl<HabitRepository>()));
   sl.registerLazySingleton(() => GetHabitEntryForDate(sl<HabitRepository>()));
+  sl.registerLazySingleton(() => ResetUserProgress(sl<HabitRepository>()));
 
   // BLoC
   sl.registerFactory(
@@ -138,6 +163,8 @@ Future<void> configureDependencies() async {
       createHabitEntry: sl<CreateHabitEntry>(),
       getHabitEntryForDate: sl<GetHabitEntryForDate>(),
       habitRepository: sl<HabitRepository>(),
+      notificationService: sl<NotificationService>(),
+      leaderboardUpdateService: sl<LeaderboardUpdateService>(),
     ),
   );
 
@@ -170,6 +197,13 @@ Future<void> configureDependencies() async {
       updateUserProfile: sl<UpdateUserProfile>(),
       createUserProfile: sl<CreateUserProfile>(),
       uploadProfileImage: sl<UploadProfileImage>(),
+    ),
+  );
+
+  // Settings
+  sl.registerFactory(
+    () => SettingsBloc(
+      prefs: sl<SharedPreferences>(),
     ),
   );
 
@@ -215,6 +249,31 @@ Future<void> configureDependencies() async {
       getSystemAnalytics: sl<GetSystemAnalytics>(),
       exportUsersData: sl<ExportUsersData>(),
       exportHabitsData: sl<ExportHabitsData>(),
+    ),
+  );
+
+  // Leaderboard Feature
+  // Data sources
+  sl.registerLazySingleton<LeaderboardRemoteDataSource>(
+    () => LeaderboardRemoteDataSourceImpl(
+      firestore: sl<FirebaseFirestore>(),
+    ),
+  );
+
+  // Repositories
+  sl.registerLazySingleton<LeaderboardRepository>(
+    () => LeaderboardRepositoryImpl(
+      remoteDataSource: sl<LeaderboardRemoteDataSource>(),
+    ),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => GetLeaderboard(sl<LeaderboardRepository>()));
+
+  // BLoC
+  sl.registerFactory(
+    () => LeaderboardBloc(
+      getLeaderboard: sl<GetLeaderboard>(),
     ),
   );
 }

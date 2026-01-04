@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_card.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
@@ -91,22 +89,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios,
-            color: AppColors.textPrimary,
+            color: colorScheme.onSurface,
           ),
         ),
-        title: const Text(
+        title: Text(
           'Edit Profile',
-          style: TextStyle(
-            color: AppColors.textPrimary,
+          style: textTheme.titleMedium?.copyWith(
+            color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -115,9 +116,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
             padding: const EdgeInsets.only(right: 16),
             child: NeumorphicButton(
               onPressed: _saveProfile,
-              child: const Icon(
+              child: Icon(
                 Icons.check,
-                color: AppColors.success,
+                color: colorScheme.primary,
               ),
             ),
           ),
@@ -125,6 +126,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
       body: BlocListener<ProfileBloc, ProfileState>(
         listener: (context, state) {
+          final snackbarColorScheme = Theme.of(context).colorScheme;
           if (state.status == ProfileStatus.loaded && state.profile != null) {
             if (_isLoading) {
               _populateFields(state.profile!);
@@ -136,7 +138,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(state.message!),
-                  backgroundColor: AppColors.success,
+                  backgroundColor: snackbarColorScheme.primary,
                 ),
               );
               if (state.message == 'Profile updated successfully') {
@@ -147,7 +149,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message ?? 'An error occurred'),
-                backgroundColor: AppColors.error,
+                backgroundColor: snackbarColorScheme.error,
               ),
             );
             setState(() {
@@ -187,17 +189,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildProfilePicture() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            const Text(
+            Text(
               'Profile Picture',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 20),
@@ -205,15 +209,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
               children: [
                 CircleAvatar(
                   radius: 60,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  backgroundColor: colorScheme.primary.withOpacity(0.1),
                   backgroundImage: _currentProfile?.photoUrl != null
                       ? NetworkImage(_currentProfile!.photoUrl!)
                       : null,
                   child: _currentProfile?.photoUrl == null
-                      ? const Icon(
+                      ? Icon(
                           Icons.person,
                           size: 60,
-                          color: AppColors.primary,
+                          color: colorScheme.primary,
                         )
                       : null,
                 ),
@@ -225,13 +229,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     child: Container(
                       width: 36,
                       height: 36,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.camera_alt,
-                        color: Colors.white,
+                        color: colorScheme.onPrimary,
                         size: 20,
                       ),
                     ),
@@ -246,18 +250,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildPersonalInfo() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Personal Information',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -301,18 +307,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildContactInfo() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Contact Information',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -343,18 +351,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildPreferences() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Preferences',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -366,18 +376,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildBio() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return NeumorphicCard(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'About Me',
-              style: TextStyle(
-                fontSize: 18,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -393,21 +405,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildSaveButton() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return NeumorphicButton(
       onPressed: _saveProfile,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: colorScheme.primary,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Text(
+        child: Text(
           'Save Profile',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
+          style: textTheme.titleSmall?.copyWith(
+            color: colorScheme.onPrimary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -416,30 +430,34 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildGenderSelection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Gender',
-          style: TextStyle(
-            fontSize: 14,
+          style: textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: colorScheme.surface,
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedGender,
               isExpanded: true,
-              style: const TextStyle(color: AppColors.textPrimary),
-              dropdownColor: AppColors.surface,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface,
+              ),
+              dropdownColor: colorScheme.surface,
               onChanged: (String? newValue) {
                 if (newValue != null) {
                   setState(() {
@@ -461,15 +479,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildBirthdateSelection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Birthdate',
-          style: TextStyle(
-            fontSize: 14,
+          style: textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 8),
@@ -480,13 +500,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today, color: AppColors.primary),
+                Icon(Icons.calendar_today, color: colorScheme.primary),
                 const SizedBox(width: 12),
                 Text(
                   '${_selectedBirthdate.day}/${_selectedBirthdate.month}/${_selectedBirthdate.year}',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -498,30 +517,34 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildGoalSelection() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Primary Goal',
-          style: TextStyle(
-            fontSize: 14,
+          style: textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: colorScheme.surface,
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedGoal,
               isExpanded: true,
-              style: const TextStyle(color: AppColors.textPrimary),
-              dropdownColor: AppColors.surface,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface,
+              ),
+              dropdownColor: colorScheme.surface,
               onChanged: (String? newValue) {
                 if (newValue != null) {
                   setState(() {
@@ -543,113 +566,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   void _selectProfilePicture() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Select Profile Picture',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                NeumorphicButton(
-                  onPressed: () => _pickImage(ImageSource.camera),
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.camera_alt,
-                          color: AppColors.primary, size: 32),
-                      SizedBox(height: 8),
-                      Text('Camera',
-                          style: TextStyle(color: AppColors.textPrimary)),
-                    ],
-                  ),
-                ),
-                NeumorphicButton(
-                  onPressed: () => _pickImage(ImageSource.gallery),
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.photo_library,
-                          color: AppColors.primary, size: 32),
-                      SizedBox(height: 8),
-                      Text('Gallery',
-                          style: TextStyle(color: AppColors.textPrimary)),
-                    ],
-                  ),
-                ),
-                if (_currentProfile?.photoUrl != null)
-                  NeumorphicButton(
-                    onPressed: _removeProfilePicture,
-                    child: const Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.delete, color: AppColors.error, size: 32),
-                        SizedBox(height: 8),
-                        Text('Remove',
-                            style: TextStyle(color: AppColors.textPrimary)),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Coming Soon'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
       ),
     );
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    Navigator.of(context).pop(); // Close the modal
-
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: source,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 80,
-    );
-
-    if (image != null) {
-      // Upload the image
-      final authState = context.read<AuthBloc>().state;
-      if (authState.user != null) {
-        context.read<ProfileBloc>().add(
-              UploadProfileImageRequested(
-                userId: authState.user!.id,
-                imagePath: image.path,
-              ),
-            );
-      }
-    }
-  }
-
-  void _removeProfilePicture() {
-    Navigator.of(context).pop();
-    if (_currentProfile != null) {
-      final updatedProfile = _currentProfile!.copyWith(
-        photoUrl: null,
-        updatedAt: DateTime.now(),
-      );
-      context.read<ProfileBloc>().add(
-            UpdateUserProfileRequested(profile: updatedProfile),
-          );
-    }
   }
 
   Future<void> _selectBirthdate() async {

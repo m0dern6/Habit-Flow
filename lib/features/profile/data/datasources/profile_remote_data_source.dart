@@ -103,9 +103,20 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   Future<String> uploadProfileImage(String userId, String imagePath) async {
     try {
       final file = File(imagePath);
-      final ref = storage.ref().child('profile_images').child('$userId.jpg');
+      if (!await file.exists()) {
+        throw ServerException(message: 'Image file not found at $imagePath');
+      }
 
-      await ref.putFile(file);
+      final ref = storage.ref().child('profile_images').child('$userId.jpg');
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {'picked-file-path': imagePath},
+      );
+
+      // Use putData instead of putFile to avoid potential file access issues
+      final bytes = await file.readAsBytes();
+      await ref.putData(bytes, metadata);
+
       final downloadUrl = await ref.getDownloadURL();
 
       return downloadUrl;

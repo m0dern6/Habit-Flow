@@ -90,6 +90,20 @@ class HabitRepositoryImpl implements HabitRepository {
   }
 
   @override
+  Future<Either<Failure, List<HabitEntry>>> getUserHabitEntries(
+      String userId, DateTime startDate, DateTime endDate) async {
+    try {
+      final entries = await remoteDataSource.getUserHabitEntries(
+          userId, startDate, endDate);
+      return Right(entries);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (e) {
+      return Left(UnknownFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, HabitEntry?>> getHabitEntryForDate(
       String habitId, DateTime date) async {
     try {
@@ -160,6 +174,18 @@ class HabitRepositoryImpl implements HabitRepository {
       final rates = await remoteDataSource.getHabitCompletionRates(
           userId, startDate, endDate);
       return Right(rates);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    } catch (e) {
+      return Left(UnknownFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> resetUserProgress(String userId) async {
+    try {
+      await remoteDataSource.resetUserProgress(userId);
+      return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message));
     } catch (e) {

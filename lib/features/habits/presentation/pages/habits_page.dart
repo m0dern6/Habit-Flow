@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/neumorphism_style.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_card.dart';
@@ -30,6 +30,7 @@ class _HabitsPageState extends State<HabitsPage> {
     'Health',
     'Productivity'
   ];
+  final Set<String> _togglingHabits = <String>{};
 
   @override
   void initState() {
@@ -42,38 +43,50 @@ class _HabitsPageState extends State<HabitsPage> {
     if (authState.status == AuthStatus.authenticated &&
         authState.user != null) {
       final userId = authState.user!.id;
-      print('Loading habits for user: $userId'); // Debug print
       context.read<HabitBloc>().add(LoadUserHabits(userId: userId));
       context.read<HabitBloc>().add(LoadHabitStreaks(userId: userId));
     } else {
-      print('User not authenticated: ${authState.status}'); // Debug print
+      debugPrint('HabitsPage: user not authenticated: ${authState.status}');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final statusColors =
+        Theme.of(context).extension<StatusColors>() ?? StatusColors.light;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Column(
-              children: [
-                _buildHeader(),
-                if (constraints.maxWidth > 600) _buildCategoryFilters(),
-                Expanded(
-                  child: constraints.maxWidth > 1200
-                      ? _buildDesktopLayout()
-                      : constraints.maxWidth > 600
-                          ? _buildTabletLayout()
-                          : _buildMobileLayout(),
-                ),
-              ],
-            );
+        child: BlocListener<HabitBloc, HabitState>(
+          listenWhen: (prev, curr) => prev != curr,
+          listener: (context, state) {
+            if (_togglingHabits.isNotEmpty) {
+              setState(() => _togglingHabits.clear());
+            }
           },
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
+                children: [
+                  _buildHeader(colorScheme, textTheme),
+                  if (constraints.maxWidth > 600) _buildCategoryFilters(),
+                  Expanded(
+                    child: constraints.maxWidth > 1200
+                        ? _buildDesktopLayout()
+                        : constraints.maxWidth > 600
+                            ? _buildTabletLayout()
+                            : _buildMobileLayout(),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
-      floatingActionButton: _buildAddButton(),
+      floatingActionButton: _buildAddButton(colorScheme),
     );
   }
 
@@ -134,36 +147,34 @@ class _HabitsPageState extends State<HabitsPage> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(ColorScheme colorScheme, TextTheme textTheme) {
     return Container(
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.track_changes,
             size: 32,
-            color: AppColors.primary,
+            color: colorScheme.primary,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'My Habits',
-                  style: TextStyle(
-                    fontSize: 28,
+                  style: textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 BlocBuilder<HabitBloc, HabitState>(
                   builder: (context, state) {
                     return Text(
                       '${state.habits.length} active habits',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     );
                   },
@@ -173,9 +184,9 @@ class _HabitsPageState extends State<HabitsPage> {
           ),
           NeumorphicButton(
             onPressed: () => context.push('/analytics'),
-            child: const Icon(
+            child: Icon(
               Icons.analytics,
-              color: AppColors.primary,
+              color: colorScheme.primary,
             ),
           ),
         ],
@@ -184,6 +195,13 @@ class _HabitsPageState extends State<HabitsPage> {
   }
 
   Widget _buildCategoryFilters() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final baseColor = colorScheme.surface;
+    final selectedColor = colorScheme.surfaceContainerHighest;
+    final shadowColor = colorScheme.shadow.withOpacity(0.12);
+    final highlightShadow = colorScheme.onSurface.withOpacity(0.08);
+
     return Container(
       height: 60,
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -205,20 +223,34 @@ class _HabitsPageState extends State<HabitsPage> {
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: isSelected
-                    ? NeumorphismStyle.createNeumorphism(
-                        depth: 2,
-                        isPressed: true,
-                      )
-                    : NeumorphismStyle.createNeumorphism(
-                        depth: 2,
-                      ),
+                decoration: BoxDecoration(
+                  color: isSelected ? selectedColor : baseColor,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: shadowColor,
+                      blurRadius: isSelected ? 10 : 8,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: highlightShadow,
+                      blurRadius: isSelected ? 6 : 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: isSelected
+                        ? colorScheme.primary.withOpacity(0.4)
+                        : colorScheme.outlineVariant,
+                    width: 1.2,
+                  ),
+                ),
                 child: Text(
                   category,
-                  style: TextStyle(
+                  style: textTheme.bodyMedium?.copyWith(
                     color: isSelected
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
                     fontWeight:
                         isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -234,8 +266,12 @@ class _HabitsPageState extends State<HabitsPage> {
   Widget _buildHabitsList() {
     return BlocBuilder<HabitBloc, HabitState>(
       builder: (context, state) {
+        final colorScheme = Theme.of(context).colorScheme;
+        final textTheme = Theme.of(context).textTheme;
+
         if (state.status == HabitStatus.loading) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+              child: CircularProgressIndicator(color: colorScheme.primary));
         }
 
         if (state.status == HabitStatus.error) {
@@ -243,18 +279,17 @@ class _HabitsPageState extends State<HabitsPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.error_outline,
                   size: 64,
-                  color: AppColors.error,
+                  color: colorScheme.error,
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Something went wrong',
-                  style: TextStyle(
-                    fontSize: 18,
+                  style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -263,20 +298,23 @@ class _HabitsPageState extends State<HabitsPage> {
                   child: Text(
                     state.message ?? 'Unknown error occurred',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 NeumorphicButton(
                   onPressed: _loadHabits,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
                     child: Text(
                       'Retry',
-                      style: TextStyle(color: AppColors.primary),
+                      style: textTheme.labelLarge?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -292,20 +330,19 @@ class _HabitsPageState extends State<HabitsPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.track_changes,
                   size: 64,
-                  color: AppColors.textSecondary,
+                  color: colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   _selectedCategory == 'All'
                       ? 'No habits yet'
                       : 'No $_selectedCategory habits',
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -313,20 +350,20 @@ class _HabitsPageState extends State<HabitsPage> {
                   _selectedCategory == 'All'
                       ? 'Start building better habits today!'
                       : 'Try a different category or create a new habit',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 16),
                 NeumorphicButton(
                   onPressed: () => context.push('/habits/add'),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
                     child: Text(
                       'Add New Habit',
-                      style: TextStyle(
-                        color: AppColors.primary,
+                      style: textTheme.labelLarge?.copyWith(
+                        color: colorScheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -338,7 +375,12 @@ class _HabitsPageState extends State<HabitsPage> {
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 10,
+            bottom: 80, // Add bottom padding to prevent FAB overlap
+          ),
           itemCount: filteredHabits.length,
           itemBuilder: (context, index) {
             return Padding(
@@ -363,6 +405,11 @@ class _HabitsPageState extends State<HabitsPage> {
   Widget _buildHabitCard(dynamic habit, HabitState state) {
     final streak = state.habitStreaks[habit.id] ?? 0;
     final today = DateTime.now();
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final statusColors =
+        Theme.of(context).extension<StatusColors>() ?? StatusColors.light;
+    final categoryColor = _getCategoryColor(context, habit.category);
 
     // Check if habit is completed today
     HabitEntry? todayEntry;
@@ -393,12 +440,12 @@ class _HabitsPageState extends State<HabitsPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _getCategoryColor(habit.category).withOpacity(0.1),
+                      color: categoryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       _getCategoryIcon(habit.category),
-                      color: _getCategoryColor(habit.category),
+                      color: categoryColor,
                       size: 24,
                     ),
                   ),
@@ -412,10 +459,9 @@ class _HabitsPageState extends State<HabitsPage> {
                             Expanded(
                               child: Text(
                                 habit.title,
-                                style: const TextStyle(
-                                  fontSize: 18,
+                                style: textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
+                                  color: colorScheme.onSurface,
                                 ),
                               ),
                             ),
@@ -425,8 +471,7 @@ class _HabitsPageState extends State<HabitsPage> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: _getCategoryColor(habit.category)
-                                    .withOpacity(0.1),
+                                color: categoryColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -434,7 +479,7 @@ class _HabitsPageState extends State<HabitsPage> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
-                                  color: _getCategoryColor(habit.category),
+                                  color: categoryColor,
                                 ),
                               ),
                             ),
@@ -443,9 +488,8 @@ class _HabitsPageState extends State<HabitsPage> {
                         const SizedBox(height: 4),
                         Text(
                           habit.description,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -460,19 +504,21 @@ class _HabitsPageState extends State<HabitsPage> {
                 children: [
                   Expanded(
                     child: _buildStatChip(
+                      context,
                       'Streak',
                       '$streak days',
                       Icons.local_fire_department,
-                      Colors.orange,
+                      statusColors.warning,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildStatChip(
+                      context,
                       'Today',
                       isCompleted ? 'Done' : 'Pending',
                       isCompleted ? Icons.check_circle : Icons.schedule,
-                      isCompleted ? AppColors.success : AppColors.warning,
+                      isCompleted ? statusColors.success : statusColors.warning,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -481,15 +527,25 @@ class _HabitsPageState extends State<HabitsPage> {
                         _toggleHabitCompletion(habit.id, today, !isCompleted),
                     child: Container(
                       padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        isCompleted
-                            ? Icons.check_circle
-                            : Icons.radio_button_unchecked,
-                        color: isCompleted
-                            ? AppColors.success
-                            : AppColors.textSecondary,
-                        size: 20,
-                      ),
+                      child: _togglingHabits.contains(habit.id)
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    statusColors.success),
+                              ),
+                            )
+                          : Icon(
+                              isCompleted
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: isCompleted
+                                  ? statusColors.success
+                                  : colorScheme.onSurfaceVariant,
+                              size: 20,
+                            ),
                     ),
                   ),
                 ],
@@ -501,8 +557,8 @@ class _HabitsPageState extends State<HabitsPage> {
     );
   }
 
-  Widget _buildStatChip(
-      String label, String value, IconData icon, Color color) {
+  Widget _buildStatChip(BuildContext context, String label, String value,
+      IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -519,19 +575,17 @@ class _HabitsPageState extends State<HabitsPage> {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
               Text(
                 value,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ],
           ),
@@ -541,8 +595,11 @@ class _HabitsPageState extends State<HabitsPage> {
   }
 
   void _toggleHabitCompletion(String habitId, DateTime date, bool completed) {
+    debugPrint(
+        'HabitsPage: Toggle habit completion: habitId=$habitId, completed=$completed');
     final authState = context.read<AuthBloc>().state;
     if (authState.user != null) {
+      setState(() => _togglingHabits.add(habitId));
       context.read<HabitBloc>().add(
             ToggleHabitCompletion(
               habitId: habitId,
@@ -554,20 +611,24 @@ class _HabitsPageState extends State<HabitsPage> {
     }
   }
 
-  Color _getCategoryColor(String category) {
+  Color _getCategoryColor(BuildContext context, String category) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final statusColors =
+        Theme.of(context).extension<StatusColors>() ?? StatusColors.light;
+
     switch (category.toLowerCase()) {
       case 'fitness':
-        return AppColors.accent;
+        return colorScheme.secondary;
       case 'mindfulness':
-        return AppColors.primary;
+        return colorScheme.primary;
       case 'learning':
-        return AppColors.success;
+        return statusColors.info;
       case 'health':
-        return Colors.lightBlue;
+        return colorScheme.secondaryContainer;
       case 'productivity':
-        return Colors.purple;
+        return statusColors.warning;
       default:
-        return AppColors.textSecondary;
+        return colorScheme.onSurfaceVariant;
     }
   }
 
@@ -588,14 +649,14 @@ class _HabitsPageState extends State<HabitsPage> {
     }
   }
 
-  Widget _buildAddButton() {
+  Widget _buildAddButton(ColorScheme colorScheme) {
     return NeumorphicButton(
       onPressed: () => context.push('/habits/add'),
       child: Container(
         padding: const EdgeInsets.all(16),
-        child: const Icon(
+        child: Icon(
           Icons.add,
-          color: AppColors.primary,
+          color: colorScheme.primary,
           size: 28,
         ),
       ),

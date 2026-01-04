@@ -16,6 +16,10 @@ import '../../features/habits/presentation/pages/edit_habit_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/profile/presentation/pages/edit_profile_page.dart';
 import '../../features/profile/presentation/bloc/profile_bloc.dart';
+import '../../features/profile/presentation/pages/settings/notifications_settings_page.dart';
+import '../../features/profile/presentation/pages/settings/privacy_settings_page.dart';
+import '../../features/profile/presentation/pages/settings/help_support_page.dart';
+import '../../features/profile/presentation/pages/settings/settings_page.dart';
 import '../../features/analytics/presentation/pages/analytics_page_new.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
@@ -25,7 +29,9 @@ import '../../features/admin/presentation/pages/admin_access_page.dart';
 import '../../features/admin/presentation/pages/admin_sign_in_page.dart';
 import '../../features/admin/presentation/pages/admin_main_page.dart';
 import '../../features/admin/presentation/bloc/admin_bloc.dart';
-import '../../features/admin/presentation/bloc/admin_event.dart';
+
+// Leaderboard
+import '../../features/leaderboard/presentation/pages/leaderboard_page.dart';
 
 import '../di/injection_container.dart';
 
@@ -50,6 +56,8 @@ class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
+  static late GoRouter router;
+
   static GoRouter createRouter(AuthBloc authBloc) => GoRouter(
         navigatorKey: _rootNavigatorKey,
         initialLocation: '/splash',
@@ -58,22 +66,17 @@ class AppRouter {
           final authState = authBloc.state;
           final currentLocation = state.uri.toString();
 
-          // Always allow splash page
           if (currentLocation == '/splash') return null;
 
-          // Don't redirect to splash if user is on auth pages and loading
-          // This prevents interrupting sign-up/sign-in flows
           final isOnAuthPage = currentLocation == '/sign-in' ||
               currentLocation == '/sign-up' ||
               currentLocation == '/forgot-password' ||
               currentLocation == '/onboarding';
 
-          // If auth is still loading, only redirect to splash if not on auth pages
           if (authState.status == AuthStatus.loading && !isOnAuthPage) {
             return '/splash';
           }
 
-          // If user is not authenticated and trying to access protected routes
           if (authState.status == AuthStatus.unauthenticated) {
             if (currentLocation.startsWith('/home') ||
                 currentLocation.startsWith('/habits') ||
@@ -84,7 +87,6 @@ class AppRouter {
             }
           }
 
-          // If user is authenticated and trying to access auth routes
           if (authState.status == AuthStatus.authenticated) {
             if (currentLocation == '/onboarding' ||
                 currentLocation == '/sign-in' ||
@@ -93,7 +95,6 @@ class AppRouter {
               return '/home';
             }
 
-            // For admin routes, check if user has admin privileges
             if (currentLocation.startsWith('/admin') &&
                 currentLocation != '/admin-access') {
               final user = authState.user;
@@ -101,7 +102,6 @@ class AppRouter {
                   user?.isAdmin == true || user?.role == 'admin';
 
               if (!isUserAdmin) {
-                // Redirect non-admin users to admin access page
                 return '/admin-access';
               }
             }
@@ -110,19 +110,14 @@ class AppRouter {
           return null;
         },
         routes: [
-          // Splash Route
           GoRoute(
             path: '/splash',
             builder: (context, state) => const SplashPage(),
           ),
-
-          // Onboarding Route
           GoRoute(
             path: '/onboarding',
             builder: (context, state) => const OnboardingPage(),
           ),
-
-          // Auth Routes
           GoRoute(
             path: '/sign-in',
             builder: (context, state) => const SignInPage(),
@@ -135,8 +130,6 @@ class AppRouter {
             path: '/forgot-password',
             builder: (context, state) => const ForgotPasswordPage(),
           ),
-
-          // Main App Shell with Bottom Navigation
           ShellRoute(
             navigatorKey: _shellNavigatorKey,
             builder: (context, state, child) =>
@@ -151,11 +144,11 @@ class AppRouter {
                 builder: (context, state) => const HabitsPage(),
                 routes: [
                   GoRoute(
-                    path: '/add',
+                    path: 'add',
                     builder: (context, state) => const AddHabitPage(),
                   ),
                   GoRoute(
-                    path: '/edit/:id',
+                    path: 'edit/:id',
                     builder: (context, state) {
                       final habitId = state.pathParameters['id']!;
                       return EditHabitPage(habitId: habitId);
@@ -172,72 +165,59 @@ class AppRouter {
                 builder: (context, state) => const ProfilePage(),
                 routes: [
                   GoRoute(
-                    path: '/edit',
+                    path: 'edit',
                     builder: (context, state) => BlocProvider<ProfileBloc>(
                       create: (context) => sl<ProfileBloc>(),
                       child: const EditProfilePage(),
                     ),
                   ),
+                  GoRoute(
+                    path: 'settings',
+                    builder: (context, state) => const SettingsPage(),
+                  ),
+                  GoRoute(
+                    path: 'notifications',
+                    builder: (context, state) =>
+                        const NotificationsSettingsPage(),
+                  ),
+                  GoRoute(
+                    path: 'privacy',
+                    builder: (context, state) => const PrivacySettingsPage(),
+                  ),
+                  GoRoute(
+                    path: 'help',
+                    builder: (context, state) => const HelpSupportPage(),
+                  ),
                 ],
               ),
             ],
           ),
-
-          // Admin Routes
+          GoRoute(
+            path: '/leaderboard',
+            builder: (context, state) => const LeaderboardPage(),
+          ),
+          ShellRoute(
+            builder: (context, state, child) {
+              return BlocProvider<AdminBloc>(
+                create: (context) => sl<AdminBloc>(),
+                child: child,
+              );
+            },
+            routes: [
+              GoRoute(
+                path: '/admin/sign-in',
+                builder: (context, state) => const AdminSignInPage(),
+              ),
+              GoRoute(
+                path: '/admin/dashboard',
+                builder: (context, state) => const AdminMainPage(),
+              ),
+            ],
+          ),
           GoRoute(
             path: '/admin-access',
             builder: (context, state) => const AdminAccessPage(),
           ),
-          GoRoute(
-            path: '/admin/sign-in',
-            builder: (context, state) => BlocProvider<AdminBloc>(
-              create: (context) => sl<AdminBloc>(),
-              child: const AdminSignInPage(),
-            ),
-          ),
-          GoRoute(
-            path: '/admin',
-            redirect: (context, state) {
-              // If accessing admin root, redirect to dashboard
-              if (state.uri.toString() == '/admin') {
-                return '/admin/dashboard';
-              }
-              return null;
-            },
-            builder: (context, state) => BlocProvider<AdminBloc>(
-              create: (context) => sl<AdminBloc>(),
-              child: const AdminMainPage(),
-            ),
-            routes: [
-              GoRoute(
-                path: '/dashboard',
-                builder: (context, state) => BlocProvider<AdminBloc>(
-                  create: (context) => sl<AdminBloc>()
-                    ..add(const AdminAutoAuthenticateRequested()),
-                  child: const AdminMainPage(initialTab: 'dashboard'),
-                ),
-              ),
-              GoRoute(
-                path: '/users',
-                builder: (context, state) => BlocProvider<AdminBloc>(
-                  create: (context) => sl<AdminBloc>()
-                    ..add(const AdminAutoAuthenticateRequested()),
-                  child: const AdminMainPage(initialTab: 'users'),
-                ),
-              ),
-              GoRoute(
-                path: '/analytics',
-                builder: (context, state) => BlocProvider<AdminBloc>(
-                  create: (context) => sl<AdminBloc>()
-                    ..add(const AdminAutoAuthenticateRequested()),
-                  child: const AdminMainPage(initialTab: 'analytics'),
-                ),
-              ),
-            ],
-          ),
         ],
       );
-
-  // Backward compatibility - will be set by main.dart
-  static late GoRouter router;
 }

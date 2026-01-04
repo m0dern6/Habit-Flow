@@ -9,17 +9,17 @@ class NeumorphismStyle {
     bool isInverted = false,
     BorderRadius? borderRadius,
   }) {
-    final baseColor = color ?? AppColors.background;
+    final baseColor = color ?? AppColors.surface;
     final radius = borderRadius ?? BorderRadius.circular(16);
     final safeDepth = depth.abs(); // Ensure depth is always positive
 
     if (isPressed) {
       return BoxDecoration(
-        color: baseColor.withOpacity(0.95),
+        color: baseColor.withAlpha((255 * 0.95).round()),
         borderRadius: radius,
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadowDarkest.withOpacity(0.4),
+            color: AppColors.shadowDarkest.withAlpha((255 * 0.55).round()),
             offset: Offset(safeDepth / 4, safeDepth / 4),
             blurRadius: (safeDepth / 2).clamp(0.0, double.infinity),
             spreadRadius: -(safeDepth / 4),
@@ -34,12 +34,12 @@ class NeumorphismStyle {
         borderRadius: radius,
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadowLight.withOpacity(0.7),
+            color: AppColors.shadowLight.withAlpha((255 * 0.7).round()),
             offset: Offset(-safeDepth, -safeDepth),
             blurRadius: (safeDepth * 2).clamp(0.0, double.infinity),
           ),
           BoxShadow(
-            color: AppColors.shadowDarkest.withOpacity(0.3),
+            color: AppColors.shadowDarkest.withAlpha((255 * 0.45).round()),
             offset: Offset(safeDepth, safeDepth),
             blurRadius: (safeDepth * 2).clamp(0.0, double.infinity),
           ),
@@ -50,16 +50,23 @@ class NeumorphismStyle {
     return BoxDecoration(
       color: baseColor,
       borderRadius: radius,
+      border: Border.all(
+        color: AppColors.shadowDarkest.withAlpha(25),
+        width: 1.0,
+      ),
       boxShadow: [
         BoxShadow(
-          color: AppColors.shadowDarkest.withOpacity(0.2),
-          offset: Offset(safeDepth, safeDepth),
-          blurRadius: (safeDepth * 2).clamp(0.0, double.infinity),
+          color: AppColors.shadowDarkest
+              .withAlpha(170), // Darker shadow for stronger depth
+          offset: Offset(safeDepth * 1.8, safeDepth * 1.8),
+          blurRadius: safeDepth * 5.25,
+          spreadRadius: 2.0,
         ),
         BoxShadow(
-          color: AppColors.shadowLight.withOpacity(0.9),
-          offset: Offset(-safeDepth, -safeDepth),
-          blurRadius: (safeDepth * 2).clamp(0.0, double.infinity),
+          color: AppColors.shadowLight.withAlpha(250), // Maximum brightness
+          offset: Offset(-safeDepth * 1.8, -safeDepth * 1.8),
+          blurRadius: safeDepth * 5.25,
+          spreadRadius: 2.0,
         ),
       ],
     );
@@ -129,11 +136,11 @@ class NeumorphismStyle {
 
     if (isPressed) {
       return BoxDecoration(
-        color: baseColor.withOpacity(0.95),
+        color: baseColor.withAlpha((255 * 0.95).round()),
         borderRadius: radius,
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadowDarkDark.withOpacity(0.6),
+            color: AppColors.shadowDarkDark.withAlpha((255 * 0.75).round()),
             offset: Offset(safeDepth / 4, safeDepth / 4),
             blurRadius: (safeDepth / 2).clamp(0.0, double.infinity),
             spreadRadius: -(safeDepth / 4),
@@ -148,12 +155,12 @@ class NeumorphismStyle {
         borderRadius: radius,
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadowLightDark.withOpacity(0.1),
+            color: AppColors.shadowLightDark.withAlpha((255 * 0.1).round()),
             offset: Offset(-safeDepth, -safeDepth),
             blurRadius: (safeDepth * 2).clamp(0.0, double.infinity),
           ),
           BoxShadow(
-            color: AppColors.shadowDarkDark.withOpacity(0.5),
+            color: AppColors.shadowDarkDark.withAlpha((255 * 0.65).round()),
             offset: Offset(safeDepth, safeDepth),
             blurRadius: (safeDepth * 2).clamp(0.0, double.infinity),
           ),
@@ -164,16 +171,23 @@ class NeumorphismStyle {
     return BoxDecoration(
       color: baseColor,
       borderRadius: radius,
+      border: Border.all(
+        color: AppColors.shadowLightDark.withAlpha(35),
+        width: 1.0,
+      ),
       boxShadow: [
         BoxShadow(
-          color: AppColors.shadowDarkDark.withOpacity(0.3),
-          offset: Offset(safeDepth, safeDepth),
-          blurRadius: (safeDepth * 2).clamp(0.0, double.infinity),
+          color: AppColors.shadowDarkDark
+              .withAlpha(255), // Maximum opacity for strongest separation
+          offset: Offset(safeDepth * 1.2, safeDepth * 1.2),
+          blurRadius: safeDepth * 3.5,
+          spreadRadius: 2.0,
         ),
         BoxShadow(
-          color: AppColors.shadowLightDark.withOpacity(0.1),
-          offset: Offset(-safeDepth, -safeDepth),
-          blurRadius: (safeDepth * 2).clamp(0.0, double.infinity),
+          color: AppColors.shadowLightDark.withAlpha(80), // Stronger light edge
+          offset: Offset(-safeDepth * 1.2, -safeDepth * 1.2),
+          blurRadius: safeDepth * 3.5,
+          spreadRadius: 2.0,
         ),
       ],
     );

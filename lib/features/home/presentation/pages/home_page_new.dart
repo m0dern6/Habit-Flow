@@ -1,16 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
-import '../../../../core/widgets/neumorphic_card.dart';
+import '../../../../core/widgets/neumorphic_section.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../habits/presentation/bloc/habit_bloc.dart';
 import '../../../habits/presentation/bloc/habit_event.dart';
-import '../../../habits/presentation/bloc/habit_state.dart';
+import '../widgets/welcome_header.dart';
+import '../widgets/motivational_quote_card.dart';
+import '../widgets/stats_overview_card.dart';
+import '../widgets/todays_habits_list.dart';
+import '../widgets/quick_actions_grid.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,6 +24,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentQuoteIndex = 0;
+  bool _isLoadingQuote = false;
 
   final List<Map<String, String>> _motivationalQuotes = [
     {
@@ -33,19 +37,205 @@ class _HomePageState extends State<HomePage> {
       'quote': 'Success is the sum of small efforts repeated daily.',
       'author': 'Robert Collier'
     },
+    {
+      'quote':
+          'We are what we repeatedly do. Excellence, then, is not an act, but a habit.',
+      'author': 'Aristotle'
+    },
+    {
+      'quote': 'The secret of getting ahead is getting started.',
+      'author': 'Mark Twain'
+    },
+    {
+      'quote':
+          'You don\'t have to be great to start, but you have to start to be great.',
+      'author': 'Zig Ziglar'
+    },
+    {
+      'quote':
+          'Motivation is what gets you started. Habit is what keeps you going.',
+      'author': 'Jim Ryun'
+    },
+    {
+      'quote':
+          'The only person you are destined to become is the person you decide to be.',
+      'author': 'Ralph Waldo Emerson'
+    },
+    {
+      'quote':
+          'Success is not final, failure is not fatal: it is the courage to continue that counts.',
+      'author': 'Winston Churchill'
+    },
+    {
+      'quote': 'Believe you can and you\'re halfway there.',
+      'author': 'Theodore Roosevelt'
+    },
+    {
+      'quote': 'The future depends on what you do today.',
+      'author': 'Mahatma Gandhi'
+    },
+    {
+      'quote': 'Don\'t watch the clock; do what it does. Keep going.',
+      'author': 'Sam Levenson'
+    },
+    {
+      'quote': 'Everything you\'ve ever wanted is on the other side of fear.',
+      'author': 'George Addair'
+    },
+    {
+      'quote':
+          'It does not matter how slowly you go as long as you do not stop.',
+      'author': 'Confucius'
+    },
+    {
+      'quote':
+          'The harder you work for something, the greater you\'ll feel when you achieve it.',
+      'author': 'Anonymous'
+    },
+    {'quote': 'Dream bigger. Do bigger.', 'author': 'Anonymous'},
+    {
+      'quote': 'Success doesn\'t just find you. You have to go out and get it.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'Great things never come from comfort zones.',
+      'author': 'Anonymous'
+    },
+    {'quote': 'Dream it. Wish it. Do it.', 'author': 'Anonymous'},
+    {
+      'quote':
+          'Success is not how high you have climbed, but how you make a positive difference to the world.',
+      'author': 'Roy T. Bennett'
+    },
+    {
+      'quote':
+          'The best time to plant a tree was 20 years ago. The second best time is now.',
+      'author': 'Chinese Proverb'
+    },
+    {
+      'quote': 'Your limitation—it\'s only your imagination.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'Push yourself, because no one else is going to do it for you.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'Sometimes later becomes never. Do it now.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'Don\'t stop when you\'re tired. Stop when you\'re done.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'Wake up with determination. Go to bed with satisfaction.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'Do something today that your future self will thank you for.',
+      'author': 'Sean Patrick Flanery'
+    },
+    {'quote': 'Little things make big days.', 'author': 'Anonymous'},
+    {
+      'quote': 'It\'s going to be hard, but hard does not mean impossible.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'Don\'t be afraid to give up the good to go for the great.',
+      'author': 'John D. Rockefeller'
+    },
+    {'quote': 'If you can dream it, you can do it.', 'author': 'Walt Disney'},
+    {
+      'quote':
+          'Hardships often prepare ordinary people for an extraordinary destiny.',
+      'author': 'C.S. Lewis'
+    },
+    {
+      'quote':
+          'Never give up on a dream just because of the time it will take to accomplish it.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'The distance between dreams and reality is called action.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'Fall seven times, stand up eight.',
+      'author': 'Japanese Proverb'
+    },
+    {
+      'quote': 'Every accomplishment starts with the decision to try.',
+      'author': 'Anonymous'
+    },
+    {
+      'quote': 'Your passion is waiting for your courage to catch up.',
+      'author': 'Isabelle Lafleche'
+    },
+    {
+      'quote': 'What you do today can improve all your tomorrows.',
+      'author': 'Ralph Marston'
+    },
+    {
+      'quote': 'The way to get started is to quit talking and begin doing.',
+      'author': 'Walt Disney'
+    },
+    {
+      'quote': 'A year from now you may wish you had started today.',
+      'author': 'Karen Lamb'
+    },
+    {
+      'quote':
+          'You are never too old to set another goal or to dream a new dream.',
+      'author': 'C.S. Lewis'
+    },
+    {
+      'quote': 'The only impossible journey is the one you never begin.',
+      'author': 'Tony Robbins'
+    },
+    {
+      'quote': 'Don\'t let yesterday take up too much of today.',
+      'author': 'Will Rogers'
+    },
+    {
+      'quote':
+          'Success is walking from failure to failure with no loss of enthusiasm.',
+      'author': 'Winston Churchill'
+    },
+    {
+      'quote': 'Act as if what you do makes a difference. It does.',
+      'author': 'William James'
+    },
+    {
+      'quote': 'The best revenge is massive success.',
+      'author': 'Frank Sinatra'
+    },
+    {
+      'quote': 'Opportunities don\'t happen. You create them.',
+      'author': 'Chris Grosser'
+    },
+    {
+      'quote': 'I never dreamed about success, I worked for it.',
+      'author': 'Estée Lauder'
+    },
+    {
+      'quote':
+          'Try not to become a person of success, but rather try to become a person of value.',
+      'author': 'Albert Einstein'
+    },
   ];
 
   @override
   void initState() {
     super.initState();
+    _fetchQuoteFromApi(); // Try to fetch from API first
     _startQuoteRotation();
     _loadUserData();
   }
 
   void _loadUserData() {
     final authState = context.read<AuthBloc>().state;
-    if (authState.status == AuthStatus.authenticated &&
-        authState.user != null) {
+    if (authState.user != null) {
       final userId = authState.user!.id;
       context.read<HabitBloc>().add(LoadUserHabits(userId: userId));
       context.read<HabitBloc>().add(LoadHabitStreaks(userId: userId));
@@ -53,804 +243,117 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _startQuoteRotation() {
-    Future.delayed(const Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: 8), () {
       if (mounted) {
-        setState(() {
-          _currentQuoteIndex =
-              (_currentQuoteIndex + 1) % _motivationalQuotes.length;
-        });
+        _fetchQuoteFromApi(); // Fetch new quote from API
         _startQuoteRotation();
       }
     });
   }
 
+  Future<void> _fetchQuoteFromApi() async {
+    if (_isLoadingQuote) return;
+
+    setState(() {
+      _isLoadingQuote = true;
+    });
+
+    try {
+      // Using ZenQuotes API - free, no auth required
+      final response = await http
+          .get(
+            Uri.parse('https://zenquotes.io/api/random'),
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200 && mounted) {
+        final List<dynamic> data = json.decode(response.body);
+        if (data.isNotEmpty) {
+          final quoteData = data[0];
+          setState(() {
+            // Add API quote to the beginning of the list
+            _motivationalQuotes.insert(0, {
+              'quote': quoteData['q'] ?? '',
+              'author': quoteData['a'] ?? 'Unknown',
+            });
+            // Keep list size manageable (max 100 quotes)
+            if (_motivationalQuotes.length > 100) {
+              _motivationalQuotes.removeLast();
+            }
+            _currentQuoteIndex = 0;
+            _isLoadingQuote = false;
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      // API failed, use local quotes
+      debugPrint('Failed to fetch quote from API: $e');
+    }
+
+    // Fallback to rotating local quotes
+    if (mounted) {
+      setState(() {
+        _currentQuoteIndex =
+            (_currentQuoteIndex + 1) % _motivationalQuotes.length;
+        _isLoadingQuote = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       body: Column(
         children: [
-          // Custom status bar space with gradient
-          Container(
-            height: statusBarHeight,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.background,
-                  AppColors.background,
-                ],
-              ),
-            ),
-          ),
-          // Main content
+          Container(height: statusBarHeight),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // Responsive layout based on screen width
-                if (constraints.maxWidth > 1200) {
-                  return _buildDesktopLayout();
-                } else if (constraints.maxWidth > 800) {
-                  return _buildTabletLayout();
-                } else {
-                  return _buildMobileLayout();
-                }
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWelcomeHeader(),
-          const SizedBox(height: 24),
-          _buildMotivationalQuote(),
-          const SizedBox(height: 24),
-          _buildStatsOverview(),
-          const SizedBox(height: 24),
-          _buildTodaysHabits(),
-          const SizedBox(height: 24),
-          _buildQuickActions(),
-          const SizedBox(height: 24),
-          _buildRecentAchievements(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabletLayout() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWelcomeHeader(),
-          const SizedBox(height: 32),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: Column(
-                  children: [
-                    _buildMotivationalQuote(),
-                    const SizedBox(height: 32),
-                    _buildTodaysHabits(),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                flex: 1,
-                child: Column(
-                  children: [
-                    _buildStatsOverview(),
-                    const SizedBox(height: 32),
-                    _buildQuickActions(),
-                    const SizedBox(height: 32),
-                    _buildRecentAchievements(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDesktopLayout() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWelcomeHeader(),
-          const SizedBox(height: 40),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 3,
-                child: Column(
-                  children: [
-                    _buildMotivationalQuote(),
-                    const SizedBox(height: 40),
-                    _buildTodaysHabits(),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 32),
-              Expanded(
-                flex: 2,
-                child: Column(
-                  children: [
-                    _buildStatsOverview(),
-                    const SizedBox(height: 32),
-                    _buildQuickActions(),
-                    const SizedBox(height: 32),
-                    _buildRecentAchievements(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWelcomeHeader() {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        final firstName = state.user?.firstName ?? '';
-        // Extract first name, handle edge cases
-        final userName = firstName.isEmpty ? 'User' : firstName;
-        final currentHour = DateTime.now().hour;
-        String greeting = 'Good Morning';
-
-        if (currentHour >= 12 && currentHour < 17) {
-          greeting = 'Good Afternoon';
-        } else if (currentHour >= 17) {
-          greeting = 'Good Evening';
-        }
-
-        return NeumorphicCard(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.emoji_emotions,
-                    size: 32,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$greeting, $userName!',
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
-                                ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        DateFormat('EEEE, MMMM d, y').format(DateTime.now()),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                NeumorphicButton(
-                  onPressed: () => context.push('/profile'),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    child: const Icon(
-                      Icons.person,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMotivationalQuote() {
-    return NeumorphicCard(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.format_quote,
-              size: 32,
-              color: AppColors.primary,
-            ),
-            const SizedBox(height: 16),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
-              child: Text(
-                _motivationalQuotes[_currentQuoteIndex]['quote']!,
-                key: ValueKey(_currentQuoteIndex),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.textPrimary,
-                  height: 1.4,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '— ${_motivationalQuotes[_currentQuoteIndex]['author']}',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatsOverview() {
-    return BlocBuilder<HabitBloc, HabitState>(
-      builder: (context, state) {
-        final totalHabits = state.habits.length;
-        final totalStreaks =
-            state.habitStreaks.values.fold(0, (sum, streak) => sum + streak);
-        final averageStreak =
-            totalHabits > 0 ? (totalStreaks / totalHabits).round() : 0;
-
-        // Calculate today's completion
-        final today = DateTime.now();
-        final todayEntries = state.habitEntries.where((entry) =>
-            entry.date.year == today.year &&
-            entry.date.month == today.month &&
-            entry.date.day == today.day);
-        final completedToday =
-            todayEntries.where((entry) => entry.completed).length;
-
-        return NeumorphicCard(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.analytics,
-                      size: 24,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Today\'s Overview',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildStatItem('Total Habits', totalHabits.toString(),
-                    Icons.track_changes),
-                const SizedBox(height: 16),
-                _buildStatItem('Completed Today',
-                    '$completedToday/$totalHabits', Icons.check_circle),
-                const SizedBox(height: 16),
-                _buildStatItem(
-                    'Average Streak', '$averageStreak days', Icons.trending_up),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: NeumorphicButton(
-                    onPressed: () => context.push('/analytics'),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'View Analytics',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: AppColors.accent),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTodaysHabits() {
-    return BlocBuilder<HabitBloc, HabitState>(
-      builder: (context, state) {
-        if (state.status == HabitStatus.loading) {
-          return const NeumorphicCard(
-            child: Padding(
-              padding: EdgeInsets.all(40),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          );
-        }
-
-        if (state.habits.isEmpty) {
-          return NeumorphicCard(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              physics: const BouncingScrollPhysics(),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.track_changes,
-                    size: 48,
-                    color: AppColors.textSecondary,
+                  const WelcomeHeader(),
+                  const SizedBox(height: 28),
+                  MotivationalQuoteCard(
+                    quote: _motivationalQuotes[_currentQuoteIndex],
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No habits yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
+                  const SizedBox(height: 32),
+                  const NeumorphicSection(
+                    title: 'Current Progress',
+                    icon: Icons.analytics_rounded,
+                    child: StatsOverviewCard(),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Start building better habits today!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  NeumorphicButton(
-                    onPressed: () => context.push('/habits/add'),
-                    child: const Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      child: Text(
-                        'Add Your First Habit',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                  const SizedBox(height: 32),
+                  NeumorphicSection(
+                    title: 'Today\'s Habits',
+                    icon: Icons.today_rounded,
+                    trailing: NeumorphicButton(
+                      padding: const EdgeInsets.all(8),
+                      borderRadius: BorderRadius.circular(10),
+                      onPressed: () => context.push('/habits'),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 18,
+                        color: colorScheme.primary,
                       ),
                     ),
+                    child: const TodaysHabitsList(),
                   ),
+                  const SizedBox(height: 32),
+                  const NeumorphicSection(
+                    title: 'Quick Actions',
+                    icon: Icons.bolt_rounded,
+                    child: QuickActionsGrid(),
+                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
-            ),
-          );
-        }
-
-        return NeumorphicCard(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.today,
-                      size: 24,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Today\'s Habits',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    NeumorphicButton(
-                      onPressed: () => context.push('/habits'),
-                      child: const Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Icon(
-                          Icons.arrow_forward,
-                          color: AppColors.primary,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                ...state.habits.take(3).map((habit) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _buildHabitCard(habit, state),
-                    )),
-                if (state.habits.length > 3)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Center(
-                      child: TextButton(
-                        onPressed: () => context.push('/habits'),
-                        child: Text(
-                          'View all ${state.habits.length} habits',
-                          style: const TextStyle(color: AppColors.primary),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildHabitCard(dynamic habit, HabitState state) {
-    final today = DateTime.now();
-    final streak = state.habitStreaks[habit.id] ?? 0;
-
-    // Check if habit is completed today
-    dynamic todayEntry;
-    try {
-      todayEntry = state.habitEntries.firstWhere(
-        (entry) =>
-            entry.habitId == habit.id &&
-            entry.date.year == today.year &&
-            entry.date.month == today.month &&
-            entry.date.day == today.day,
-      );
-    } catch (e) {
-      todayEntry = null;
-    }
-
-    final isCompleted = todayEntry?.completed ?? false;
-
-    return NeumorphicCard(
-      depth: 2,
-      child: InkWell(
-        onTap: () => _toggleHabitCompletion(habit.id, today, !isCompleted),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isCompleted
-                      ? AppColors.success.withOpacity(0.2)
-                      : AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isCompleted
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  color: isCompleted ? AppColors.success : AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      habit.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                        decoration:
-                            isCompleted ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${streak} day streak • ${habit.category}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _toggleHabitCompletion(String habitId, DateTime date, bool completed) {
-    final authState = context.read<AuthBloc>().state;
-    if (authState.user != null) {
-      context.read<HabitBloc>().add(
-            ToggleHabitCompletion(
-              habitId: habitId,
-              date: date,
-              completed: completed,
-              userId: authState.user!.id,
-            ),
-          );
-    }
-  }
-
-  Widget _buildQuickActions() {
-    return NeumorphicCard(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Quick Actions',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildActionButton(
-              'Add New Habit',
-              Icons.add_circle,
-              AppColors.primary,
-              () => context.push('/habits/add'),
-            ),
-            const SizedBox(height: 12),
-            _buildActionButton(
-              'View All Habits',
-              Icons.list,
-              AppColors.accent,
-              () => context.push('/habits'),
-            ),
-            const SizedBox(height: 12),
-            _buildActionButton(
-              'Analytics',
-              Icons.analytics,
-              AppColors.success,
-              () => context.push('/analytics'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(
-      String title, IconData icon, Color color, VoidCallback onPressed) {
-    return SizedBox(
-      width: double.infinity,
-      child: NeumorphicButton(
-        onPressed: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecentAchievements() {
-    return BlocBuilder<HabitBloc, HabitState>(
-      builder: (context, state) {
-        final achievements = _generateAchievements(state);
-
-        return NeumorphicCard(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(
-                      Icons.military_tech,
-                      size: 24,
-                      color: AppColors.primary,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'Achievements',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (achievements.isEmpty)
-                  const Text(
-                    'Complete habits to unlock achievements!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  )
-                else
-                  ...achievements.map((achievement) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildAchievementItem(achievement),
-                      )),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  List<Map<String, dynamic>> _generateAchievements(HabitState state) {
-    final achievements = <Map<String, dynamic>>[];
-
-    // Check for streak achievements
-    state.habitStreaks.forEach((habitId, streak) {
-      try {
-        final habit = state.habits.firstWhere((h) => h.id == habitId);
-
-        // Add achievements based on streak
-        if (streak >= 7) {
-          achievements.add({
-            'title': '7-Day Streak!',
-            'description': '${habit.title} - Week warrior',
-            'icon': Icons.local_fire_department,
-            'color': Colors.orange,
-          });
-        }
-        if (streak >= 30) {
-          achievements.add({
-            'title': '30-Day Champion!',
-            'description': '${habit.title} - Month master',
-            'icon': Icons.star,
-            'color': Colors.amber,
-          });
-        }
-        if (streak >= 100) {
-          achievements.add({
-            'title': '100-Day Legend!',
-            'description': '${habit.title} - Century crusher',
-            'icon': Icons.emoji_events,
-            'color': Colors.deepPurple,
-          });
-        }
-      } catch (e) {
-        // Habit not found, skip this streak
-      }
-    });
-
-    // Check for completion achievements
-    final totalHabits = state.habits.length;
-    if (totalHabits >= 5) {
-      achievements.add({
-        'title': 'Habit Collector',
-        'description': 'Created $totalHabits habits',
-        'icon': Icons.collections,
-        'color': AppColors.primary,
-      });
-    }
-
-    return achievements.take(3).toList();
-  }
-
-  Widget _buildAchievementItem(Map<String, dynamic> achievement) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: achievement['color'].withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            achievement['icon'],
-            color: achievement['color'],
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  achievement['title'],
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                Text(
-                  achievement['description'],
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
             ),
           ),
         ],

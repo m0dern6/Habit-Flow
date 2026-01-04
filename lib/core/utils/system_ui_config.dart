@@ -14,7 +14,7 @@ class SystemUIConfig {
 
         // System navigation bar
         systemNavigationBarColor:
-            isDarkMode ? AppColors.backgroundDark : AppColors.background,
+            isDarkMode ? AppColors.surfaceDark : AppColors.surface,
         systemNavigationBarIconBrightness:
             isDarkMode ? Brightness.light : Brightness.dark,
         systemNavigationBarDividerColor: Colors.transparent,

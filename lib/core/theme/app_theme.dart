@@ -2,102 +2,144 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 
+class StatusColors extends ThemeExtension<StatusColors> {
+  final Color success;
+  final Color warning;
+  final Color info;
+
+  const StatusColors({
+    required this.success,
+    required this.warning,
+    required this.info,
+  });
+
+  static const light = StatusColors(
+    success: AppColors.success,
+    warning: AppColors.warning,
+    info: AppColors.info,
+  );
+
+  static const dark = StatusColors(
+    success: AppColors.success,
+    warning: AppColors.warning,
+    info: AppColors.info,
+  );
+
+  @override
+  StatusColors copyWith({Color? success, Color? warning, Color? info}) {
+    return StatusColors(
+      success: success ?? this.success,
+      warning: warning ?? this.warning,
+      info: info ?? this.info,
+    );
+  }
+
+  @override
+  StatusColors lerp(ThemeExtension<StatusColors>? other, double t) {
+    if (other is! StatusColors) return this;
+    return StatusColors(
+      success: Color.lerp(success, other.success, t) ?? success,
+      warning: Color.lerp(warning, other.warning, t) ?? warning,
+      info: Color.lerp(info, other.info, t) ?? info,
+    );
+  }
+}
+
 class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      extensions: const [StatusColors.light],
 
       // Color Scheme
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.surface,
-        background: AppColors.background,
         error: AppColors.error,
         onPrimary: AppColors.textInverse,
         onSecondary: AppColors.textInverse,
         onSurface: AppColors.textPrimary,
-        onBackground: AppColors.textPrimary,
         onError: AppColors.textInverse,
-        surfaceVariant: AppColors.surfaceVariant,
+        surfaceContainerHighest: AppColors.surfaceVariant,
       ),
 
       // Typography
-      textTheme: GoogleFonts.interTextTheme().copyWith(
-        displayLarge: GoogleFonts.inter(
+      textTheme: const TextTheme().copyWith(
+        displayLarge: const TextStyle(
           fontSize: 32,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,
           height: 1.2,
         ),
-        displayMedium: GoogleFonts.inter(
+        displayMedium: const TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.3,
         ),
-        displaySmall: GoogleFonts.inter(
+        displaySmall: const TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.3,
         ),
-        headlineLarge: GoogleFonts.inter(
+        headlineLarge: const TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.3,
         ),
-        headlineMedium: GoogleFonts.inter(
+        headlineMedium: const TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.4,
         ),
-        headlineSmall: GoogleFonts.inter(
+        headlineSmall: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.4,
         ),
-        titleLarge: GoogleFonts.inter(
+        titleLarge: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.5,
         ),
-        titleMedium: GoogleFonts.inter(
+        titleMedium: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: AppColors.textPrimary,
           height: 1.5,
         ),
-        titleSmall: GoogleFonts.inter(
+        titleSmall: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
           color: AppColors.textSecondary,
           height: 1.5,
         ),
-        bodyLarge: GoogleFonts.inter(
+        bodyLarge: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: AppColors.textPrimary,
           height: 1.6,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: AppColors.textPrimary,
           height: 1.6,
         ),
-        bodySmall: GoogleFonts.inter(
+        bodySmall: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: AppColors.textSecondary,
           height: 1.6,
         ),
-        labelLarge: GoogleFonts.inter(
+        labelLarge: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: AppColors.textPrimary,
@@ -123,7 +165,7 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: const TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
@@ -173,7 +215,7 @@ class AppTheme {
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        hintStyle: GoogleFonts.inter(
+        hintStyle: const TextStyle(
           color: AppColors.textTertiary,
           fontSize: 14,
         ),
@@ -200,7 +242,7 @@ class AppTheme {
       ),
 
       // Scaffold Background
-      scaffoldBackgroundColor: AppColors.background,
+      scaffoldBackgroundColor: AppColors.surface,
     );
   }
 
@@ -208,46 +250,44 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      extensions: const [StatusColors.dark],
 
       // Color Scheme
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: AppColors.surfaceDark,
-        background: AppColors.backgroundDark,
         error: AppColors.error,
         onPrimary: AppColors.textInverse,
         onSecondary: AppColors.textInverse,
         onSurface: AppColors.textInverse,
-        onBackground: AppColors.textInverse,
         onError: AppColors.textInverse,
-        surfaceVariant: AppColors.surfaceVariantDark,
+        surfaceContainerHighest: AppColors.surfaceVariantDark,
       ),
 
       // Typography (same as light theme but with inverse colors)
-      textTheme: GoogleFonts.interTextTheme().copyWith(
-        displayLarge: GoogleFonts.inter(
+      textTheme: const TextTheme().copyWith(
+        displayLarge: const TextStyle(
           fontSize: 32,
           fontWeight: FontWeight.w700,
           color: AppColors.textInverse,
           height: 1.2,
         ),
-        displayMedium: GoogleFonts.inter(
+        displayMedium: const TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w600,
           color: AppColors.textInverse,
           height: 1.3,
         ),
-        // ... (similar to light theme but with inverse colors)
       ),
 
       // AppBar Theme
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.backgroundDark,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: AppColors.textInverse,
@@ -258,7 +298,7 @@ class AppTheme {
       ),
 
       // Scaffold Background
-      scaffoldBackgroundColor: AppColors.backgroundDark,
+      scaffoldBackgroundColor: AppColors.surfaceDark,
     );
   }
 }

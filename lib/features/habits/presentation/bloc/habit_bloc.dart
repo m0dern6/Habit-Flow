@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter/foundation.dart';
+import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/leaderboard_update_service.dart';
+import '../../domain/entities/habit.dart';
 import '../../domain/entities/habit_entry.dart';
 import '../../domain/usecases/get_user_habits.dart';
 import '../../domain/usecases/create_habit.dart';
@@ -18,6 +22,8 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
   final CreateHabitEntry createHabitEntry;
   final GetHabitEntryForDate getHabitEntryForDate;
   final HabitRepository habitRepository;
+  final NotificationService notificationService;
+  final LeaderboardUpdateService leaderboardUpdateService;
 
   HabitBloc({
     required this.getUserHabits,
@@ -26,6 +32,8 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
     required this.createHabitEntry,
     required this.getHabitEntryForDate,
     required this.habitRepository,
+    required this.notificationService,
+    required this.leaderboardUpdateService,
   }) : super(const HabitState()) {
     on<LoadUserHabits>(_onLoadUserHabits);
     on<CreateHabitRequested>(_onCreateHabitRequested);
@@ -34,6 +42,7 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
     on<ToggleHabitCompletion>(_onToggleHabitCompletion);
     on<LoadHabitEntries>(_onLoadHabitEntries);
     on<LoadHabitStreaks>(_onLoadHabitStreaks);
+    on<LoadUserHabitEntries>(_onLoadUserHabitEntries);
   }
 
   Future<void> _onLoadUserHabits(
@@ -44,15 +53,45 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
 
     final result =
         await getUserHabits(GetUserHabitsParams(userId: event.userId));
-    result.fold(
-      (failure) => emit(state.copyWith(
+
+    await result.fold(
+      (failure) async => emit(state.copyWith(
         status: HabitStatus.error,
         message: failure.toString(),
       )),
-      (habits) => emit(state.copyWith(
-        status: HabitStatus.loaded,
-        habits: habits,
-      )),
+      (habits) async {
+        // Also fetch entries for today and yesterday to show status and streaks
+        final today = DateTime.now();
+        final startDate =
+            DateTime(today.year, today.month, today.day - 7); // Last 7 days
+        final endDate =
+            DateTime(today.year, today.month, today.day, 23, 59, 59);
+
+        final entriesResult = await habitRepository.getUserHabitEntries(
+          event.userId,
+          startDate,
+          endDate,
+        );
+
+        entriesResult.fold(
+          (failure) {
+            debugPrint('HabitBloc: Failed to load companion entries: $failure');
+            emit(state.copyWith(
+              status: HabitStatus.loaded,
+              habits: habits,
+            ));
+          },
+          (entries) {
+            debugPrint(
+                'HabitBloc: Pre-loaded ${entries.length} entries for user');
+            emit(state.copyWith(
+              status: HabitStatus.loaded,
+              habits: habits,
+              habitEntries: entries,
+            ));
+          },
+        );
+      },
     );
   }
 
@@ -63,16 +102,29 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
     emit(state.copyWith(status: HabitStatus.loading));
 
     final result = await createHabit(CreateHabitParams(habit: event.habit));
-    result.fold(
-      (failure) => emit(state.copyWith(
-        status: HabitStatus.error,
-        message: failure.toString(),
-      )),
-      (habit) {
-        final updatedHabits = List<dynamic>.from(state.habits)..add(habit);
+    await result.fold<Future<void>>(
+      (failure) async {
+        emit(state.copyWith(
+          status: HabitStatus.error,
+          message: failure.toString(),
+        ));
+      },
+      (habit) async {
+        // Schedule notifications if reminder is set
+        if (habit.reminderTime != null && habit.reminderDays.isNotEmpty) {
+          final weekdays = _convertDaysToWeekdays(habit.reminderDays);
+          await notificationService.scheduleHabitReminders(
+            habitId: habit.id,
+            habitTitle: habit.title,
+            reminderTime: habit.reminderTime!,
+            weekdays: weekdays,
+          );
+        }
+
+        final updatedHabits = List<Habit>.from(state.habits)..add(habit);
         emit(state.copyWith(
           status: HabitStatus.loaded,
-          habits: updatedHabits.cast(),
+          habits: updatedHabits,
         ));
       },
     );
@@ -85,12 +137,29 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
     emit(state.copyWith(status: HabitStatus.loading));
 
     final result = await updateHabit(UpdateHabitParams(habit: event.habit));
-    result.fold(
-      (failure) => emit(state.copyWith(
-        status: HabitStatus.error,
-        message: failure.toString(),
-      )),
-      (updatedHabit) {
+    await result.fold<Future<void>>(
+      (failure) async {
+        emit(state.copyWith(
+          status: HabitStatus.error,
+          message: failure.toString(),
+        ));
+      },
+      (updatedHabit) async {
+        // Cancel existing notifications
+        await notificationService.cancelHabitReminders(updatedHabit.id);
+
+        // Schedule new notifications if reminder is set
+        if (updatedHabit.reminderTime != null &&
+            updatedHabit.reminderDays.isNotEmpty) {
+          final weekdays = _convertDaysToWeekdays(updatedHabit.reminderDays);
+          await notificationService.scheduleHabitReminders(
+            habitId: updatedHabit.id,
+            habitTitle: updatedHabit.title,
+            reminderTime: updatedHabit.reminderTime!,
+            weekdays: weekdays,
+          );
+        }
+
         final updatedHabits = state.habits
             .map((habit) => habit.id == updatedHabit.id ? updatedHabit : habit)
             .toList();
@@ -102,11 +171,31 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
     );
   }
 
+  List<int> _convertDaysToWeekdays(List<String> days) {
+    const dayMap = {
+      'monday': 1,
+      'tuesday': 2,
+      'wednesday': 3,
+      'thursday': 4,
+      'friday': 5,
+      'saturday': 6,
+      'sunday': 7,
+    };
+
+    return days
+        .map((day) => dayMap[day.toLowerCase()])
+        .whereType<int>()
+        .toList();
+  }
+
   Future<void> _onDeleteHabitRequested(
     DeleteHabitRequested event,
     Emitter<HabitState> emit,
   ) async {
     emit(state.copyWith(status: HabitStatus.loading));
+
+    // Cancel notifications for this habit
+    await notificationService.cancelHabitReminders(event.habitId);
 
     final result = await habitRepository.deleteHabit(event.habitId);
     result.fold(
@@ -129,6 +218,8 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
     ToggleHabitCompletion event,
     Emitter<HabitState> emit,
   ) async {
+    debugPrint(
+        'HabitBloc: ToggleHabitCompletion event received for habit: ${event.habitId}');
     // Check if entry exists for the date
     final existingEntryResult = await getHabitEntryForDate(
       GetHabitEntryForDateParams(
@@ -137,53 +228,124 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
       ),
     );
 
-    existingEntryResult.fold(
-      (failure) => emit(state.copyWith(
-        status: HabitStatus.error,
-        message: failure.toString(),
-      )),
-      (existingEntry) async {
-        if (existingEntry != null) {
-          // Update existing entry
-          final updatedEntry = existingEntry.copyWith(
-            completed: event.completed,
-            completedAt: event.completed ? DateTime.now() : null,
-          );
+    await existingEntryResult.fold(
+      (failure) async {
+        debugPrint('HabitBloc: Failed to get habit entry: $failure');
+        // Fallback: try to find it in the local state list first
+        final localEntry = state.habitEntries.cast<HabitEntry?>().firstWhere(
+            (e) =>
+                e!.habitId == event.habitId &&
+                e.date.year == event.date.year &&
+                e.date.month == event.date.month &&
+                e.date.day == event.date.day,
+            orElse: () => null);
 
-          final updateResult =
-              await habitRepository.updateHabitEntry(updatedEntry);
-          updateResult.fold(
-            (failure) => emit(state.copyWith(
-              status: HabitStatus.error,
-              message: failure.toString(),
-            )),
-            (_) => emit(state.copyWith(status: HabitStatus.loaded)),
-          );
+        if (localEntry != null) {
+          debugPrint('HabitBloc: Found entry locally as fallback');
+          await _processToggleWithEntry(localEntry, event, emit);
         } else {
-          // Create new entry
-          final newEntry = HabitEntry(
-            id: const Uuid().v4(),
-            habitId: event.habitId,
-            userId: event.userId,
-            date: event.date,
-            completed: event.completed,
-            createdAt: DateTime.now(),
-            completedAt: event.completed ? DateTime.now() : null,
-          );
-
-          final createResult = await createHabitEntry(
-            CreateHabitEntryParams(entry: newEntry),
-          );
-          createResult.fold(
-            (failure) => emit(state.copyWith(
-              status: HabitStatus.error,
-              message: failure.toString(),
-            )),
-            (_) => emit(state.copyWith(status: HabitStatus.loaded)),
-          );
+          emit(state.copyWith(
+            status: HabitStatus.error,
+            message: failure.toString(),
+          ));
         }
       },
+      (existingEntry) async {
+        debugPrint(
+            'HabitBloc: Existing entry status: ${existingEntry != null ? "Found" : "Not Found"}');
+        await _processToggleWithEntry(existingEntry, event, emit);
+      },
     );
+  }
+
+  Future<void> _processToggleWithEntry(
+    HabitEntry? existingEntry,
+    ToggleHabitCompletion event,
+    Emitter<HabitState> emit,
+  ) async {
+    if (existingEntry != null) {
+      // Update existing entry
+      final updatedEntry = existingEntry.copyWith(
+        completed: event.completed,
+        completedAt: event.completed ? DateTime.now() : null,
+      );
+
+      final updateResult = await habitRepository.updateHabitEntry(updatedEntry);
+      updateResult.fold(
+        (failure) {
+          debugPrint('HabitBloc: Update habit entry failed: $failure');
+          emit(state.copyWith(
+            status: HabitStatus.error,
+            message: failure.toString(),
+          ));
+        },
+        (_) {
+          debugPrint('HabitBloc: Update habit entry successful');
+          // Update local state list
+          final updatedEntries = state.habitEntries
+              .map((e) => e.id == updatedEntry.id ? updatedEntry : e)
+              .toList();
+
+          // Force UI refresh by emitting state with updated list
+          emit(state.copyWith(
+            status: HabitStatus.loaded,
+            habitEntries: updatedEntries,
+          ));
+          debugPrint(
+              'HabitBloc: Emitted state with ${updatedEntries.length} entries');
+
+          // Refresh streaks after completion status changes
+          add(LoadHabitStreaks(userId: event.userId));
+
+          // Update leaderboard stats in background
+          leaderboardUpdateService.updateUserStats(event.userId);
+        },
+      );
+    } else {
+      // Create new entry
+      final newEntry = HabitEntry(
+        id: const Uuid().v4(),
+        habitId: event.habitId,
+        userId: event.userId,
+        date: event.date,
+        completed: event.completed,
+        createdAt: DateTime.now(),
+        completedAt: event.completed ? DateTime.now() : null,
+      );
+
+      final createResult = await createHabitEntry(
+        CreateHabitEntryParams(entry: newEntry),
+      );
+      createResult.fold(
+        (failure) {
+          debugPrint('HabitBloc: Create habit entry failed: $failure');
+          emit(state.copyWith(
+            status: HabitStatus.error,
+            message: failure.toString(),
+          ));
+        },
+        (_) {
+          debugPrint('HabitBloc: Create habit entry successful');
+          // Add new entry to local state list
+          final updatedEntries = List<HabitEntry>.from(state.habitEntries)
+            ..add(newEntry);
+
+          // Force UI refresh
+          emit(state.copyWith(
+            status: HabitStatus.loaded,
+            habitEntries: updatedEntries,
+          ));
+          debugPrint(
+              'HabitBloc: Emitted state with ${updatedEntries.length} entries');
+
+          // Refresh streaks after completion status changes
+          add(LoadHabitStreaks(userId: event.userId));
+
+          // Update leaderboard stats in background
+          leaderboardUpdateService.updateUserStats(event.userId);
+        },
+      );
+    }
   }
 
   Future<void> _onLoadHabitEntries(
@@ -229,6 +391,43 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
       (streaks) => emit(state.copyWith(
         habitStreaks: streaks,
       )),
+    );
+  }
+
+  Future<void> _onLoadUserHabitEntries(
+    LoadUserHabitEntries event,
+    Emitter<HabitState> emit,
+  ) async {
+    print('📥 HabitBloc: Loading user habit entries');
+    print('User ID: ${event.userId}');
+    print('Date range: ${event.startDate} to ${event.endDate}');
+
+    final result = await habitRepository.getUserHabitEntries(
+      event.userId,
+      event.startDate,
+      event.endDate,
+    );
+
+    result.fold(
+      (failure) {
+        // Don't set error status if habits are already loaded
+        // Just log the error and keep current entries
+        print('❌ Failed to load user habit entries: ${failure.toString()}');
+      },
+      (entries) {
+        print('✅ Loaded ${entries.length} entries for analytics period');
+        if (entries.isNotEmpty) {
+          print('Sample entries:');
+          for (var i = 0; i < entries.length && i < 5; i++) {
+            final entry = entries[i];
+            print(
+                '  - ${entry.date.month}/${entry.date.day}: ${entry.completed ? "✓" : "✗"} (Habit ID: ${entry.habitId.substring(0, 8)}...)');
+          }
+        }
+        emit(state.copyWith(
+          habitEntries: entries,
+        ));
+      },
     );
   }
 }

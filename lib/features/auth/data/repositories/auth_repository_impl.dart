@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/network_info.dart';
+import '../../domain/entities/account_deletion_status.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
@@ -172,6 +173,60 @@ class AuthRepositoryImpl implements AuthRepository {
       try {
         await remoteDataSource.deleteAccount();
         return const Right(null);
+      } on AuthException catch (e) {
+        return Left(AuthFailure(message: e.message));
+      } catch (e) {
+        return Left(UnknownFailure(message: e.toString()));
+      }
+    } else {
+      return const Left(NetworkFailure(message: 'No internet connection'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, AccountDeletionStatus>> scheduleAccountDeletion({
+    Duration gracePeriod = const Duration(days: 7),
+  }) async {
+    if (await networkInfo.isConnected) {
+      try {
+        final status = await remoteDataSource.scheduleAccountDeletion(
+          gracePeriod: gracePeriod,
+        );
+        return Right(status);
+      } on AuthException catch (e) {
+        return Left(AuthFailure(message: e.message));
+      } catch (e) {
+        return Left(UnknownFailure(message: e.toString()));
+      }
+    } else {
+      return const Left(NetworkFailure(message: 'No internet connection'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, AccountDeletionStatus>>
+      cancelScheduledDeletion() async {
+    if (await networkInfo.isConnected) {
+      try {
+        final status = await remoteDataSource.cancelScheduledDeletion();
+        return Right(status);
+      } on AuthException catch (e) {
+        return Left(AuthFailure(message: e.message));
+      } catch (e) {
+        return Left(UnknownFailure(message: e.toString()));
+      }
+    } else {
+      return const Left(NetworkFailure(message: 'No internet connection'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, AccountDeletionStatus>>
+      getAccountDeletionStatus() async {
+    if (await networkInfo.isConnected) {
+      try {
+        final status = await remoteDataSource.getAccountDeletionStatus();
+        return Right(status);
       } on AuthException catch (e) {
         return Left(AuthFailure(message: e.message));
       } catch (e) {

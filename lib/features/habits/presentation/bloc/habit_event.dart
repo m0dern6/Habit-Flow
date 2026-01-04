@@ -84,3 +84,18 @@ class LoadHabitStreaks extends HabitEvent {
   @override
   List<Object?> get props => [userId];
 }
+
+class LoadUserHabitEntries extends HabitEvent {
+  final String userId;
+  final DateTime startDate;
+  final DateTime endDate;
+
+  const LoadUserHabitEntries({
+    required this.userId,
+    required this.startDate,
+    required this.endDate,
+  });
+
+  @override
+  List<Object?> get props => [userId, startDate, endDate];
+}

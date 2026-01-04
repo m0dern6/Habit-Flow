@@ -218,11 +218,25 @@ class _HomePageState extends State<HomePage> {
         final userName = firstName.isEmpty ? 'User' : firstName;
         final currentHour = DateTime.now().hour;
         String greeting = 'Good Morning';
+        IconData greetingIcon = Icons.wb_sunny;
+        Color iconColor = Colors.orange;
 
-        if (currentHour >= 12 && currentHour < 17) {
+        if (currentHour >= 5 && currentHour < 12) {
+          greeting = 'Good Morning';
+          greetingIcon = Icons.wb_sunny;
+          iconColor = Colors.orange;
+        } else if (currentHour >= 12 && currentHour < 17) {
           greeting = 'Good Afternoon';
-        } else if (currentHour >= 17) {
+          greetingIcon = Icons.wb_sunny_outlined;
+          iconColor = Colors.amber;
+        } else if (currentHour >= 17 && currentHour < 21) {
           greeting = 'Good Evening';
+          greetingIcon = Icons.wb_twilight;
+          iconColor = Colors.deepOrange;
+        } else {
+          greeting = 'Good Night';
+          greetingIcon = Icons.nightlight_round;
+          iconColor = Colors.indigo;
         }
 
         return NeumorphicCard(
@@ -233,13 +247,13 @@ class _HomePageState extends State<HomePage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
+                    color: iconColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(
-                    Icons.emoji_emotions,
+                  child: Icon(
+                    greetingIcon,
                     size: 32,
-                    color: AppColors.primary,
+                    color: iconColor,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -267,13 +281,30 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 NeumorphicButton(
-                  onPressed: () => context.push('/profile'),
+                  onPressed: () => context.push('/leaderboard'),
                   child: Container(
-                    padding: const EdgeInsets.all(8),
-                    child: const Icon(
-                      Icons.person,
-                      color: AppColors.primary,
-                      size: 20,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.leaderboard,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Leaderboard',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/theme/neumorphism_style.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
@@ -16,35 +15,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<OnboardingItem> _onboardingData = [
-    OnboardingItem(
-      title: AppStrings.onboarding1Title,
-      subtitle: AppStrings.onboarding1Subtitle,
-      icon: Icons.track_changes_rounded,
-      color: AppColors.primary,
-    ),
-    OnboardingItem(
-      title: AppStrings.onboarding2Title,
-      subtitle: AppStrings.onboarding2Subtitle,
-      icon: Icons.analytics_rounded,
-      color: AppColors.secondary,
-    ),
-    OnboardingItem(
-      title: AppStrings.onboarding3Title,
-      subtitle: AppStrings.onboarding3Subtitle,
-      icon: Icons.emoji_events_rounded,
-      color: AppColors.accent,
-    ),
-  ];
-
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
   }
 
-  void _nextPage() {
-    if (_currentPage < _onboardingData.length - 1) {
+  void _nextPage(int totalPages) {
+    if (_currentPage < totalPages - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -70,10 +48,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final size = MediaQuery.of(context).size;
+    final onboardingData = _buildOnboardingData(colorScheme);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: colorScheme.surface,
       body: Container(
         width: size.width,
         height: size.height,
@@ -82,8 +62,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              theme.colorScheme.surface,
-              theme.colorScheme.surfaceContainerHighest,
+              colorScheme.surface,
+              colorScheme.surfaceContainerHighest,
             ],
           ),
         ),
@@ -99,7 +79,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     Text(
                       AppStrings.welcomeTitle,
                       style: theme.textTheme.headlineSmall?.copyWith(
-                        color: AppColors.primary,
+                        color: colorScheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -108,7 +88,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       child: Text(
                         AppStrings.skip,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -125,10 +105,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       _currentPage = index;
                     });
                   },
-                  itemCount: _onboardingData.length,
+                  itemCount: onboardingData.length,
                   itemBuilder: (context, index) {
                     return _OnboardingSlide(
-                      item: _onboardingData[index],
+                      item: onboardingData[index],
                     );
                   },
                 ),
@@ -140,10 +120,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
-                    _onboardingData.length,
+                    onboardingData.length,
                     (index) => _PageIndicator(
                       isActive: index == _currentPage,
-                      color: _onboardingData[index].color,
+                      color: onboardingData[index].color,
                     ),
                   ),
                 ),
@@ -158,11 +138,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       Expanded(
                         child: NeumorphicButton(
                           onPressed: _previousPage,
-                          color: theme.colorScheme.surface,
+                          color: colorScheme.surface,
                           child: Text(
                             AppStrings.previous,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -171,10 +151,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     Expanded(
                       flex: 2,
                       child: NeumorphicButton(
-                        onPressed: _nextPage,
-                        color: _onboardingData[_currentPage].color,
+                        onPressed: () => _nextPage(onboardingData.length),
+                        color: onboardingData[_currentPage].color,
                         child: Text(
-                          _currentPage == _onboardingData.length - 1
+                          _currentPage == onboardingData.length - 1
                               ? AppStrings.getStarted
                               : AppStrings.next,
                           style: theme.textTheme.bodyMedium?.copyWith(
@@ -217,6 +197,7 @@ class _OnboardingSlide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Padding(
       padding: const EdgeInsets.all(32),
@@ -250,7 +231,7 @@ class _OnboardingSlide extends StatelessWidget {
                 child: Icon(
                   item.icon,
                   size: 60,
-                  color: Colors.white,
+                  color: colorScheme.onPrimary,
                 ),
               ),
             ),
@@ -262,7 +243,7 @@ class _OnboardingSlide extends StatelessWidget {
           Text(
             item.title,
             style: theme.textTheme.displaySmall?.copyWith(
-              color: AppColors.textPrimary,
+              color: colorScheme.onSurface,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
@@ -274,7 +255,7 @@ class _OnboardingSlide extends StatelessWidget {
           Text(
             item.subtitle,
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: AppColors.textSecondary,
+              color: colorScheme.onSurfaceVariant,
               height: 1.6,
             ),
             textAlign: TextAlign.center,
@@ -296,15 +277,40 @@ class _PageIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.symmetric(horizontal: 4),
       width: isActive ? 24 : 8,
       height: 8,
       decoration: BoxDecoration(
-        color: isActive ? color : AppColors.textTertiary,
+        color: isActive ? color : colorScheme.onSurfaceVariant,
         borderRadius: BorderRadius.circular(4),
       ),
     );
   }
+}
+
+List<OnboardingItem> _buildOnboardingData(ColorScheme colorScheme) {
+  return [
+    OnboardingItem(
+      title: AppStrings.onboarding1Title,
+      subtitle: AppStrings.onboarding1Subtitle,
+      icon: Icons.track_changes_rounded,
+      color: colorScheme.primary,
+    ),
+    OnboardingItem(
+      title: AppStrings.onboarding2Title,
+      subtitle: AppStrings.onboarding2Subtitle,
+      icon: Icons.analytics_rounded,
+      color: colorScheme.secondary,
+    ),
+    OnboardingItem(
+      title: AppStrings.onboarding3Title,
+      subtitle: AppStrings.onboarding3Subtitle,
+      icon: Icons.emoji_events_rounded,
+      color: colorScheme.tertiary,
+    ),
+  ];
 }

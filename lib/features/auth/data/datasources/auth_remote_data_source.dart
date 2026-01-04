@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../models/account_deletion_status_model.dart';
 import '../models/user_model.dart';
 
 abstract class AuthRemoteDataSource {
@@ -39,6 +40,14 @@ abstract class AuthRemoteDataSource {
   });
 
   Future<void> deleteAccount();
+
+  Future<AccountDeletionStatusModel> scheduleAccountDeletion({
+    required Duration gracePeriod,
+  });
+
+  Future<AccountDeletionStatusModel> cancelScheduledDeletion();
+
+  Future<AccountDeletionStatusModel> getAccountDeletionStatus();
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -321,6 +330,69 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
       // Delete Firebase Auth account
       await user.delete();
+    } catch (e) {
+      throw AuthException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<AccountDeletionStatusModel> scheduleAccountDeletion({
+    required Duration gracePeriod,
+  }) async {
+    try {
+      final user = firebaseAuth.currentUser;
+      if (user == null) throw const AuthException(message: 'No user logged in');
+
+      final now = DateTime.now();
+      final executeAt = now.add(gracePeriod);
+
+      await firestore.collection('users').doc(user.uid).set({
+        'deletionStatus': 'pending',
+        'deletionScheduledAt': Timestamp.fromDate(now),
+        'deletionExecuteAt': Timestamp.fromDate(executeAt),
+        'deletionCancelledAt': FieldValue.delete(),
+      }, SetOptions(merge: true));
+
+      final updatedDoc =
+          await firestore.collection('users').doc(user.uid).get();
+      return AccountDeletionStatusModel.fromFirestore(
+          updatedDoc.data() as Map<String, dynamic>?);
+    } catch (e) {
+      throw AuthException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<AccountDeletionStatusModel> cancelScheduledDeletion() async {
+    try {
+      final user = firebaseAuth.currentUser;
+      if (user == null) throw const AuthException(message: 'No user logged in');
+
+      await firestore.collection('users').doc(user.uid).set({
+        'deletionStatus': 'cancelled',
+        'deletionScheduledAt': FieldValue.delete(),
+        'deletionExecuteAt': FieldValue.delete(),
+        'deletionCancelledAt': Timestamp.now(),
+      }, SetOptions(merge: true));
+
+      final updatedDoc =
+          await firestore.collection('users').doc(user.uid).get();
+      return AccountDeletionStatusModel.fromFirestore(
+          updatedDoc.data() as Map<String, dynamic>?);
+    } catch (e) {
+      throw AuthException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<AccountDeletionStatusModel> getAccountDeletionStatus() async {
+    try {
+      final user = firebaseAuth.currentUser;
+      if (user == null) throw const AuthException(message: 'No user logged in');
+
+      final userDoc = await firestore.collection('users').doc(user.uid).get();
+      return AccountDeletionStatusModel.fromFirestore(
+          userDoc.data() as Map<String, dynamic>?);
     } catch (e) {
       throw AuthException(message: e.toString());
     }
